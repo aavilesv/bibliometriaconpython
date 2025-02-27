@@ -203,6 +203,144 @@ try:
         authors = " ".join([word.capitalize() for word in authors.split()])
     
         return authors
+    # Aplicar la función a la columna 'Authors'
+    combined_df['Authors'] = combined_df['Authors'].apply(process_authors)
+    
+    
+# Lista global para almacenar títulos únicos
+    unique_titles = []
+    
+    def process_source_title(title, threshold=90):
+        """
+        Procesa y normaliza el título de la revista de forma dinámica.
+        
+        Parámetros:
+            title (str): El título de la revista.
+            threshold (int): Umbral de similitud para fuzzy matching (por defecto 90).
+        
+        Retorna:
+            str: Título normalizado.
+        """
+        global unique_titles  # Usar la lista global de títulos únicos
+    
+        if not isinstance(title, str):
+            return ""
+    
+        # Limpieza básica del título
+        title = re.sub(r'\([^)]*\)', '', title)  # Eliminar texto entre paréntesis
+        title = title.replace('-', ' ')  # Reemplazar guiones por espacios
+        title = re.sub(r'\s+', ' ', title).strip()  # Eliminar espacios redundantes
+        title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode('utf-8', 'ignore')  # Normalizar texto
+    
+        # Capitalizar cada palabra (formato título)
+        if not title.isupper():
+            title = " ".join([word.capitalize() for word in title.split()])
+    
+        # --- Fuzzy Matching para unificar títulos similares ---
+        if unique_titles:  # Si ya hay títulos únicos registrados
+            best_match, score, _ = process.extractOne(title, unique_titles, scorer=fuzz.token_sort_ratio)
+            
+            # Si la similitud es mayor que el umbral, reemplazar el título con el mejor match
+            if score > threshold:
+                return best_match
+    
+        # Si no se encuentra un match, agregar el título a la lista de únicos
+        unique_titles.append(title)
+        return title
+        
+    combined_df['Source title'] = combined_df['Source title'].apply(process_source_title)
+    
+    
+    # este de aquí valida las columnas que estén nulas
+    # Función para rellenar valores entre columnas
+    def fill_missing_values(row):
+        affiliations = row['Affiliations']
+        authors_with_affiliations = row['Authors with affiliations']
+        
+        # Verificar si ambas están vacías
+        if (pd.isna(affiliations) or affiliations.strip() == "") and \
+           (pd.isna(authors_with_affiliations) or authors_with_affiliations.strip() == ""):
+            return pd.Series([affiliations, authors_with_affiliations], index=['Affiliations', 'Authors with affiliations'])
+        
+        # Si 'Affiliations' está vacío, usar 'Authors with affiliations'
+        if pd.isna(affiliations) or affiliations.strip() == "":
+            affiliations = authors_with_affiliations
+        
+        # Si 'Authors with affiliations' está vacío, usar 'Affiliations'
+        if pd.isna(authors_with_affiliations) or authors_with_affiliations.strip() == "":
+            authors_with_affiliations = affiliations
+        
+        # Retornar ambos valores actualizados
+        return pd.Series([affiliations, authors_with_affiliations], index=['Affiliations', 'Authors with affiliations'])
+    
+    # Aplicar la función a cada fila
+    combined_df[['Affiliations', 'Authors with affiliations']] = combined_df.apply(fill_missing_values, axis=1)
+# Función para normalizar países
+    def normalize_country(country):
+        country = re.sub(r'(?i)\b(usa|u\.s\.a\.|united states of america|united states)\b', 'United States', country)
+        country = re.sub(r'(?i)\bpeoples r china\b', 'China', country)
+        country = re.sub(r'(?i)\brussian federation\b', 'Russia', country)
+        country = re.sub(r'(?i)\bengland\b', 'United Kingdom', country)
+        
+        country = re.sub(r'(?i)\bir\b', 'Iran', country)
+        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)
+        country = re.sub(r'\s+', ' ', country).strip()  # Eliminar espacios redundantes
+        return country
+    
+    # Función para procesar cada registro
+    def process_record(record):
+        if pd.isna(record):
+            return record  # Si el registro está vacío, devolverlo tal como está
+    
+    # Eliminar comas dentro de los corchetes []
+        record = re.sub(r'\[(.*?)\]', lambda m: m.group(0).replace(',', ''), record)  
+        # Dividir el registro por ";"
+        fragments = record.split(';')
+        processed_fragments = []
+        
+        for fragment in fragments:
+            fragment = fragment.strip()  # Eliminar espacios al inicio y al final
+          
+     
+            if ',' in fragment:
+                # Dividir por la última coma
+                print(f"Tamaño del arreglo: {len(fragment.split(','))}")
+                parts = fragment.rsplit(',', 1)
+                main_info = parts[0].strip()  # Información principal
+               
+                # Imprimir la longitud del arreglo resultante
+                print(f"Tamaño del arreglo: {len(parts)}")
+                print(f"Tamaño del arreglo: { parts[0].strip() }")
+                #country_info = parts[-1].strip()  # Supuesto país
+                country_info = parts[1].strip()  # Supuesto país
+                
+                
+                # Extraer solo el país eliminando números y códigos redundantes
+                country_info = re.sub(r'[0-9]+', '', country_info)  # Eliminar números
+                country_info = re.sub(r'\b[A-Z]{1,2}\b', '', country_info)  # Eliminar códigos como "CA" o "IL"
+                country_info = country_info.strip()  # Quitar espacios sobrantes
+                
+                # Normalizar el país
+                normalized_country = normalize_country(country_info)
+                processed_fragments.append(f"{main_info}, {normalized_country}")
+                print(normalized_country)
+            else:
+                # Si no hay coma en el fragmento, mantenerlo sin cambios
+                processed_fragments.append(fragment)
+           
+    
+        # Reconstruir el registro con los fragmentos procesados
+        return '; '.join(processed_fragments)
+    
+    # Seleccionar columnas a procesar
+    columns_to_process = ['Affiliations','Authors with affiliations']
+    
+    
+    # Aplicar la función a las columnas seleccionadas
+    for column in columns_to_process:
+        if column in combined_df.columns:
+            combined_df[column] = combined_df[column].apply(process_record)
+
     # Guardar el DataFrame combinado en un archivo CSV
     combined_output_file_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\clusting o hj biplot\\wos_scopuslibrería.csv"
     try:
