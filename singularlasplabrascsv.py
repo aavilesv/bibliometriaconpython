@@ -2,7 +2,8 @@ import pandas as pd
 import nltk
 import unicodedata
 import spacy  # Para análisis sintáctico (reordenamiento dinámico)
-
+from collections import Counter
+import numpy as np
 from nltk.corpus import wordnet as wn
 from nltk.stem import WordNetLemmatizer
 from nltk.tag import pos_tag
@@ -33,19 +34,20 @@ def get_wordnet_pos(treebank_tag):
     else:
         return wn.NOUN     # Por defecto, sustantivo
 
-# Función para lematizar una palabra a su forma base (singular para sustantivos)
+# Función para lematizar una palabra a su forma base (singular) si es un sustantivo
 def to_singular(word):
     """
     Lematiza una palabra utilizando su etiqueta POS para obtener la forma base.
-    Esto permite que, por ejemplo, "humans" se convierta en "human".
+    Si la palabra es un sustantivo en plural, se convierte a singular;
+    en otros casos, se devuelve sin cambios.
     """
     if isinstance(word, str):
         # Obtiene la etiqueta POS de la palabra
         pos = pos_tag([word])[0][1]
-        # Convierte la etiqueta a la que espera WordNet
-        wordnet_pos = get_wordnet_pos(pos)
-        # Lematiza la palabra con la etiqueta correspondiente
-        return lemmatizer.lemmatize(word, pos=wordnet_pos)
+        if pos.startswith('N'):  # Solo lematiza si es un sustantivo
+            return lemmatizer.lemmatize(word, pos='n')
+        else:
+            return word
     return word
 
 def limpiar_texto(texto):
@@ -134,15 +136,93 @@ def convertir_palabras_a_singular(column):
     return palabras_procesadas
 
 # 3. Cargar el archivo CSV y aplicar la conversión
-df = pd.read_csv("G:\\Mi unidad\\2025\\Dra. Maria Caro\\data\\wos_scopuslibrería_keywords.csv")
-
+df = pd.read_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería.csv")
 # Aplica la función a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = convertir_palabras_a_singular(df['Index Keywords'])
 df['Author Keywords'] = convertir_palabras_a_singular(df['Author Keywords'])
+# Combinar palabras de ambas columnas en un solo contador
 
+
+# Combina las palabras de ambas columnas en una sola lista
+palabras_index = df['Index Keywords'].dropna().apply(lambda x: x.split('; ')).explode().tolist()
+palabras_author = df['Author Keywords'].dropna().apply(lambda x: x.split('; ')).explode().tolist()
+palabras = palabras_index + palabras_author
+
+# Calcula la frecuencia de cada palabra
+frecuencias = Counter(palabras)
+
+# Filtrar palabras únicas (frecuencia = 1)
+palabras_unicas = {palabra for palabra, freq in frecuencias.items() if freq == 1}
+
+def eliminar_palabras_unicas_y_reconvertir(column):
+    def process_cell(cell):
+        # Si la celda es una cadena, la dividimos en una lista de términos usando ';'
+        if isinstance(cell, str):
+            terminos = [termino.strip() for termino in cell.split(';') if termino.strip()]
+        # Si ya es una lista o un array, la convertimos a lista
+        elif isinstance(cell, (list, np.ndarray)):
+            terminos = [str(termino).strip() for termino in cell if str(termino).strip()]
+        else:
+            terminos = []
+        # Filtrar los términos eliminando aquellos que aparecen solo una vez en todo el dataset
+        terminos_filtrados = [termino for termino in terminos if termino not in palabras_unicas]
+        # Unir la lista filtrada en una cadena, separando los términos por "; "
+        return '; '.join(terminos_filtrados)
+    
+    return column.apply(process_cell)
+
+# Aplica la función a las columnas "Index Keywords" y "Author Keywords"
+df['Index Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Index Keywords'])
+df['Author Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Author Keywords'])
+
+# Lista de palabras clave a eliminar (en minúsculas)
+palabras_clave_a_eliminar = [
+ 
+    "article", "nonhuman", "controlled study", "priority journal", "unclassified drug", "growth development and aging", "ph",
+    "animal food", "escherichia coli", "substrate", "agricultural robot", "chemical composition", "alcohol", "isolation and purification", "china",
+    "united state", "drug effect", "comparative study", "high performance liquid chromatography", "female", "heavy metal", "economics", "metabolite", "nanotechnology",
+    "physical chemistry", "protein expression", "bacterial growth", "european union", "in vitro study", "process optimization", "toxicity", "bioaccumulation",
+    "catering service", "nucleotide sequence", "amino acid", "consumer", "iron", "male", "mass spectrometry", "polymerase chain reaction", "consumer attitude",
+    "legislation and jurisprudence", "hexapoda", "economic aspect", "genetic analysis", "secondary metabolite", "synthesis", "byproduct", "chitosan", "composting",
+    "degradation", "nanoparticle", "cost", "hydrogen ion concentration", "immobilization", "inoculation", "lipid", "perception", "phenol", "plant extract", "rna",
+    "saccharification", "waste water", "xylose", "adaptation", "africa", "animal experiment", "biomolecules", "cost effectiveness", "fungus growth", "gene overexpression", "glycerol",
+    "growth", "growth rate", "industrial production", "oligosaccharide", "public health", "refining", "adult", "beverage", "carboxylic acid", "consumer behavior", "diet", "decision making", "meat", "mass fragmentography", "medicinal plant", "phylogenetic tree", "polyacrylamide gel electrophoresis", "standard", "arabinose", "drug industry", "food intake", "government", "green chemistry", "health risk", "hydrogen", "lactose", "larva", "machine learning", "molecular weight", "optimization", "risk", "additive", "adsorption", "attitude", "chemical industry", "detoxification", "fossil fuel", "gas chromatography", "liquid chromatography mass spectrometry", "pre treatment", "prevention and control", "surface property", "trend", "acid", "antiinfective agent", "aquaculture", "biocompatibility", "cell", "dietary supplement", "economic analysis", "essential oil", "fourier transform infrared spectroscopy",
+    "governance", "infrared spectroscopy", "methanol", "middle aged", "molasses", "molecular dynamic", "public opinion", "sensitivity analysis", "waste disposal fluid", "wine",
+    "arsenic", "batch cell culture", "beetle", "biological activity", "colony forming unit", "commerce", "consumer product safety", "copper", "dietary fiber", "efficiency", "esterase", "health hazard", "impact", "industry", "intellectual property right", "kinetics", "knowledge", "liquid chromatography", "mineral", "nanomaterial", "oxidation", "oxidoreductase", "patent", "pretreatment", "protein purification", "pseudomonas aeruginosa", "response surface methodology", "adolescent", "adoption", "argentina", "chemical compound", "cyanobacterium", "device", "enzyme immobilization", "enzyme specificity", "extraction method", "incubation time", "life cycle", "mammal", "minimum inhibitory concentration", "molecular analysis", "molecular docking", "organic compound", "phenol derivative", "reduction", "safety", "surface active agent", "veterinary medicine", "alcohol production", "allergen", "animal model", "antibiotic agent", "aspergillus fumigatus", "batch cell culture technique", "butyric acid", "commercial phenomenon", "cosmetic", "crystal structure", "cultured meat", "enzyme linked immunosorbent assay", "evaluation study", "health", "immunology",
+    "investment", "law", "market", "membrane", "metal heavy", "metal nanoparticles", "mouse", "mushroom", "pharmaceutical industry", "quality", "response surface method", "supply chain", "tissue",
+    "young adult", "aged", "alcoholic beverage", "animal welfare", "aroma", "artificial intelligence", "bacteriophage", "by product", "color", "digestion",
+    "economic development", "environmental exposure", "environmental temperature", "feasibility study", "fish", "food and drug administration", "food sovereignty",
+    "galactose", "hydrogen production", "hydrophilicity", "intellectual property", "international trade", "intestine flora", "italy", "kinetic parameter", "lead", "morphology",
+    "oxygen", "plastic", "polycyclic aromatic hydrocarbon", "polymerization", "profitability", "questionnaire", "research work", "selenium", "tandem mass spectrometry", "toxicity testing", "transmission electron microscopy"
+]
+
+# Función para eliminar palabras clave específicas y retornar una cadena
+def eliminar_palabras_clave(column):
+    # Convertir la lista de palabras clave a eliminar a minúsculas
+    palabras_clave_a_eliminar_lower = [palabra.lower() for palabra in palabras_clave_a_eliminar]
+    
+    def process_cell(cell):
+        # Si la celda es una cadena, la dividimos en una lista usando el separador ';'
+        if isinstance(cell, str):
+            terminos = [termino.strip() for termino in cell.split(';') if termino.strip()]
+        # Si ya es una lista, la usamos directamente
+        elif isinstance(cell, list):
+            terminos = [str(termino).strip() for termino in cell if str(termino).strip()]
+        else:
+            terminos = []
+        # Filtrar los términos que, al pasar a minúsculas, estén en la lista a eliminar
+        terminos_filtrados = [termino for termino in terminos if termino.lower() not in palabras_clave_a_eliminar_lower]
+        # Unir la lista filtrada en una cadena usando '; ' como separador
+        return '; '.join(terminos_filtrados)
+
+    return column.apply(process_cell)
+
+# Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
+df['Index Keywords'] = eliminar_palabras_clave(df['Index Keywords'])
+df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
-df.to_csv("G:\\Mi unidad\\2025\\Dra. Maria Caro\\data\\wos_scopuslibrería_procesado.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería_procesado.csv", index=False)
 '''
 
 import pandas as pd
@@ -203,6 +283,7 @@ def eliminar_palabras_unicas(column):
         lambda terminos: [termino for termino in terminos if termino not in palabras_unicas]
     )
 
+df['Author Keywords'] = eliminar_palabras_unicas(df['Author Keywords'])
 
 
 # Función para agrupar sinónimos usando WordNet

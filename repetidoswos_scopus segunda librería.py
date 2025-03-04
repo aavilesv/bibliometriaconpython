@@ -36,7 +36,6 @@ try:
         words = title.split()
         filtered_words = [word for word in words if word not in STOP_WORDS]
         title = " ".join(filtered_words)
-        
         # Eliminar múltiples espacios
         title = re.sub(r'\s+', ' ', title).strip()
         
@@ -45,9 +44,9 @@ try:
 
     # Cargar los datos
     
-    scopus_file_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\clusting o hj biplot\\data_scopus.csv"
+    scopus_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\scopus.csv"
     
-    wos_file_path ="G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\clusting o hj biplot\\data_wos.xlsx"
+    wos_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\savedrecs.xls"
     try:
         # Leer los datos del archivo CSV de Scopus
         scopus_df = pd.read_csv(scopus_file_path)
@@ -132,7 +131,7 @@ try:
 
 
      # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\clusting o hj biplot\\wos_scopus_repeatedstitles.csv"
+    output_file_path ="G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
   
     
@@ -186,6 +185,9 @@ try:
     # --- 8) Combinar datos ---
     # Unimos scopus_no_repeated y wos_no_repeated en un DataFrame final
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
+    ## años validar
+    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
+    combined_df = combined_df.loc[filtro]
     def process_authors(authors):
         if not isinstance(authors, str):
             return ""
@@ -304,16 +306,12 @@ try:
      
             if ',' in fragment:
                 # Dividir por la última coma
-                print(f"Tamaño del arreglo: {len(fragment.split(','))}")
+             
                 parts = fragment.rsplit(',', 1)
                 main_info = parts[0].strip()  # Información principal
-               
-                # Imprimir la longitud del arreglo resultante
-                print(f"Tamaño del arreglo: {len(parts)}")
-                print(f"Tamaño del arreglo: { parts[0].strip() }")
+                            
                 #country_info = parts[-1].strip()  # Supuesto país
                 country_info = parts[1].strip()  # Supuesto país
-                
                 
                 # Extraer solo el país eliminando números y códigos redundantes
                 country_info = re.sub(r'[0-9]+', '', country_info)  # Eliminar números
@@ -323,12 +321,11 @@ try:
                 # Normalizar el país
                 normalized_country = normalize_country(country_info)
                 processed_fragments.append(f"{main_info}, {normalized_country}")
-                print(normalized_country)
+                
             else:
                 # Si no hay coma en el fragmento, mantenerlo sin cambios
                 processed_fragments.append(fragment)
-           
-    
+               
         # Reconstruir el registro con los fragmentos procesados
         return '; '.join(processed_fragments)
     
@@ -342,7 +339,7 @@ try:
             combined_df[column] = combined_df[column].apply(process_record)
 
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\clusting o hj biplot\\wos_scopuslibrería.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         # Resultados finales
