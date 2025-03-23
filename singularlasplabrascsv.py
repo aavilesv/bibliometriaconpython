@@ -136,7 +136,7 @@ def convertir_palabras_a_singular(column):
     return palabras_procesadas
 
 # 3. Cargar el archivo CSV y aplicar la conversión
-df = pd.read_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería.csv")
+df = pd.read_csv("G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\data\\wos_scopuslibrería.csv")
 # Aplica la función a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = convertir_palabras_a_singular(df['Index Keywords'])
 df['Author Keywords'] = convertir_palabras_a_singular(df['Author Keywords'])
@@ -172,28 +172,46 @@ def eliminar_palabras_unicas_y_reconvertir(column):
     return column.apply(process_cell)
 
 # Aplica la función a las columnas "Index Keywords" y "Author Keywords"
-df['Index Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Index Keywords'])
-df['Author Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Author Keywords'])
+#df['Index Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Index Keywords'])
+#df['Author Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Author Keywords'])
 
 # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [
- 
-    "article", "nonhuman", "controlled study", "priority journal", "unclassified drug", "growth development and aging", "ph",
-    "animal food", "escherichia coli", "substrate", "agricultural robot", "chemical composition", "alcohol", "isolation and purification", "china",
-    "united state", "drug effect", "comparative study", "high performance liquid chromatography", "female", "heavy metal", "economics", "metabolite", "nanotechnology",
-    "physical chemistry", "protein expression", "bacterial growth", "european union", "in vitro study", "process optimization", "toxicity", "bioaccumulation",
-    "catering service", "nucleotide sequence", "amino acid", "consumer", "iron", "male", "mass spectrometry", "polymerase chain reaction", "consumer attitude",
-    "legislation and jurisprudence", "hexapoda", "economic aspect", "genetic analysis", "secondary metabolite", "synthesis", "byproduct", "chitosan", "composting",
-    "degradation", "nanoparticle", "cost", "hydrogen ion concentration", "immobilization", "inoculation", "lipid", "perception", "phenol", "plant extract", "rna",
-    "saccharification", "waste water", "xylose", "adaptation", "africa", "animal experiment", "biomolecules", "cost effectiveness", "fungus growth", "gene overexpression", "glycerol",
-    "growth", "growth rate", "industrial production", "oligosaccharide", "public health", "refining", "adult", "beverage", "carboxylic acid", "consumer behavior", "diet", "decision making", "meat", "mass fragmentography", "medicinal plant", "phylogenetic tree", "polyacrylamide gel electrophoresis", "standard", "arabinose", "drug industry", "food intake", "government", "green chemistry", "health risk", "hydrogen", "lactose", "larva", "machine learning", "molecular weight", "optimization", "risk", "additive", "adsorption", "attitude", "chemical industry", "detoxification", "fossil fuel", "gas chromatography", "liquid chromatography mass spectrometry", "pre treatment", "prevention and control", "surface property", "trend", "acid", "antiinfective agent", "aquaculture", "biocompatibility", "cell", "dietary supplement", "economic analysis", "essential oil", "fourier transform infrared spectroscopy",
-    "governance", "infrared spectroscopy", "methanol", "middle aged", "molasses", "molecular dynamic", "public opinion", "sensitivity analysis", "waste disposal fluid", "wine",
-    "arsenic", "batch cell culture", "beetle", "biological activity", "colony forming unit", "commerce", "consumer product safety", "copper", "dietary fiber", "efficiency", "esterase", "health hazard", "impact", "industry", "intellectual property right", "kinetics", "knowledge", "liquid chromatography", "mineral", "nanomaterial", "oxidation", "oxidoreductase", "patent", "pretreatment", "protein purification", "pseudomonas aeruginosa", "response surface methodology", "adolescent", "adoption", "argentina", "chemical compound", "cyanobacterium", "device", "enzyme immobilization", "enzyme specificity", "extraction method", "incubation time", "life cycle", "mammal", "minimum inhibitory concentration", "molecular analysis", "molecular docking", "organic compound", "phenol derivative", "reduction", "safety", "surface active agent", "veterinary medicine", "alcohol production", "allergen", "animal model", "antibiotic agent", "aspergillus fumigatus", "batch cell culture technique", "butyric acid", "commercial phenomenon", "cosmetic", "crystal structure", "cultured meat", "enzyme linked immunosorbent assay", "evaluation study", "health", "immunology",
-    "investment", "law", "market", "membrane", "metal heavy", "metal nanoparticles", "mouse", "mushroom", "pharmaceutical industry", "quality", "response surface method", "supply chain", "tissue",
-    "young adult", "aged", "alcoholic beverage", "animal welfare", "aroma", "artificial intelligence", "bacteriophage", "by product", "color", "digestion",
-    "economic development", "environmental exposure", "environmental temperature", "feasibility study", "fish", "food and drug administration", "food sovereignty",
-    "galactose", "hydrogen production", "hydrophilicity", "intellectual property", "international trade", "intestine flora", "italy", "kinetic parameter", "lead", "morphology",
-    "oxygen", "plastic", "polycyclic aromatic hydrocarbon", "polymerization", "profitability", "questionnaire", "research work", "selenium", "tandem mass spectrometry", "toxicity testing", "transmission electron microscopy"
+  "human", "Humans", "Female", "Male", "controlled study", "Adult", "major clinical study", "0", "sensitivity and specificity",
+    "retrospective study", "receiver operating characteristic", "diagnostic imaging", "predictive value", "diagnostic accuracy",
+    "diagnostic test accuracy study", "nuclear magnetic resonance imaging", "image segmentation", "Diseases", "pathology",
+    "follow up", "Young Adult", "Social Media", "image analysis", "Adolescent", "Breast cancer", "Magnetic Resonance Imaging",
+    "electronic health record", "risk factor", "very elderly", "Electronic Health Records", "clinical article", "clinical feature",
+    "prospective study", "radiomics", "nonhuman", "x-ray computed tomography", "Tomography, X-Ray Computed",
+    "clinical effectiveness", "laboratory automation", "prognosis", "clinical trial", "diagnostic value", "digital health",
+    "physiology", "biological marker", "neuroimaging", "Breast Neoplasms", "Breast", "Alzheimer disease",
+    "Architectural design", "diabetes mellitus", "drug industry", "false positive result", "metabolism", "current", "Animals",
+    "Hospitals", "clinical decision making", "cross-sectional study", "health care delivery", "longitudinal study", "Child",
+    "Automation", "Laboratory", "Comorbidity", "Electronic medical record", "Health", "Radio waves",
+    "Least squares approximations", "Leukocyte Count", "Life cycle assessment", "MANUFACTURING FIRMS", "MATURITY",
+    "Manufacturing process", "Network architecture", "PARTICLE SWARM OPTIMIZATION", "Particle swarm optimization (PSO)",
+    "RESOURCE ORCHESTRATION", "Resource orchestration theory", "Robot programming", "Service Quality", "Smart cities",
+    "Smart farming", "Structural equation modelling", "Survey", "Time Factors", "Traffic congestion", "cancer classification",
+    "cancer screening", "data", "demographics", "development", "differential diagnosis", "drug", "echography", "ecosystem",
+    "educational status", "employment", "environmental economics", "ergonomics", "financing constraints", "food quality",
+    "food waste", "fuzzy DEMATEL", "human experiment", "marketing", "modelling", "motivation", "normal human",
+    "pharmaceutics", "preoperative evaluation", "prevalence", "time factor", "university hospital",
+    "5G mobile communication systems", "AMBIDEXTERITY", "ANALYTIC HIERARCHY PROCESS", "ASSIGNMENT", "Access control",
+    "Agile manufacturing systems", "BEHAVIOR", "Biomarkers", "Blood", "COMPETENCE", "CONSTRAINTS", "CRANES", "CUSTOMER",
+    "Computation theory", "Configuration", "Coronary artery disease", "Crisis", "DUAL-CHANNEL", "Delphi study",
+    "ENERGY MANAGEMENT", "ENVIRONMENTAL UNCERTAINTY", "Electrocardiography", "Errors", "Europe",
+    "Flexible manufacturing systems", "Fuzzy AHP", "GENERATION", "HUMAN-RESOURCE MANAGEMENT", "ISM", "Italy", "LEVEL",
+    "Large dataset", "Longitudinal Studies", "MARKET ORIENTATION", "Machine design", "Medical imaging", "Model validation",
+    "Models, Statistical", "Motion planning", "Multivariate Analysis", "Navigation", "ORIENTATION", "PERSPECTIVES",
+    "PRESSURES", "Pharmaceutical industry", "Remote Sensing", "Renewable energy", "Research and development",
+    "Surveys and Questionnaires", "TOOLS", "UTAUT", "VARIABLES", "WORK", "agribusiness", "cognitive defect",
+    "complexity", "complication", "cost-benefit analysis", "developing world", "echomammography", "energy conservation",
+    "entropy", "factual database", "glucose", "glucose blood level", "health service", "hospital pharmacy", "learning",
+    "lung cancer", "mammography", "manufacturing industry", "manufacturing systems", "medical record", "mental health",
+    "mobile phone", "neoplasm", "qualitative research", "radiologist", "segmentation", "smoking", "Application programs",
+    "Biopsy", "Chains", "ELECTRIC VEHICLES", "Fruits", "Game theory", "Lymph Nodes", "METHOD BIAS", "Markov chain",
+    "Modeling", "Platform", "STATE", "catering service", "clinical decision support system", "grasping",
+    "image reconstruction", "positron emission tomography"
 ]
 
 # Función para eliminar palabras clave específicas y retornar una cadena
@@ -218,100 +236,8 @@ def eliminar_palabras_clave(column):
     return column.apply(process_cell)
 
 # Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
-df['Index Keywords'] = eliminar_palabras_clave(df['Index Keywords'])
-df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
+#df['Index Keywords'] = eliminar_palabras_clave(df['Index Keywords'])
+#df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
-df.to_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería_procesado.csv", index=False)
-'''
-
-import pandas as pd
-import nltk
-from nltk.corpus import wordnet as wn
-from nltk.stem import WordNetLemmatizer
-from collections import Counter
-
-# Descargar el paquete WordNet de NLTK si aún no está instalado
-nltk.download('wordnet')
-from nltk.stem import WordNetLemmatizer
-
-# Inicializa el lematizador
-lemmatizer = WordNetLemmatizer()
-
-# Cargar el archivo CSV
-df = pd.read_csv("G:\\Mi unidad\\2025\\Dra. Maria Caro\\data\\wos_scopuslibrería.csv")
-
-# Función para convertir palabras a singular usando el lematizador
-def to_singular(word):
-    if isinstance(word, str):
-        return lemmatizer.lemmatize(word)
-    return word  # Devuelve la palabra original si no es un `str`
-
-# Función para procesar términos (manteniendo frases intactas si tienen más de una palabra)
-def convertir_palabras_a_singular(column):
-    # Rellenar valores NaN con cadena vacía y convierte a minúsculas
-    column = column.fillna('').str.lower()
-    
-    def procesar_terminos(termino):
-        palabras = termino.split()  # Divide términos en palabras
-        # Si es una sola palabra, lematiza. Si es una frase, la deja igual.
-        if len(palabras) == 1:
-            return to_singular(palabras[0])
-        return termino.strip()  # Mantiene frases intactas
-
-    # Divide en listas por separador ";", procesa cada término, y une de nuevo
-    palabras_procesadas = column.str.split(';').apply(
-        lambda terminos: '; '.join([procesar_terminos(termino.strip()) for termino in terminos])
-    )
-    return palabras_procesadas
-
-# Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
-df['Index Keywords'] = convertir_palabras_a_singular(df['Index Keywords'])
-df['Author Keywords'] = convertir_palabras_a_singular(df['Author Keywords'])
-
-
-# Combinar palabras de ambas columnas en un solo contador
-palabras = df['Index Keywords'].explode().tolist()+ ";"+ df['Author Keywords'].explode().tolist()
-frecuencias = Counter(palabras)
-
-# Filtrar palabras únicas (frecuencia = 1)
-palabras_unicas = {palabra for palabra, freq in frecuencias.items() if freq == 1}
-
-# Eliminar palabras únicas del DataFrame
-def eliminar_palabras_unicas(column):
-    return column.apply(
-        lambda terminos: [termino for termino in terminos if termino not in palabras_unicas]
-    )
-
-df['Author Keywords'] = eliminar_palabras_unicas(df['Author Keywords'])
-
-
-# Función para agrupar sinónimos usando WordNet
-def agrupar_sinonimos(column):
-    def obtener_sinonimo_base(termino):
-        # Buscar sinónimos en WordNet
-        sinonimos = wn.synsets(termino)
-        if sinonimos:
-            # Retornar la palabra base del primer sinónimo
-            return sinonimos[0].lemmas()[0].name()
-        return termino  # Si no hay sinónimo, devuelve el término original
-
-    # Reemplazar cada término por su sinónimo base
-    return column.apply(
-        lambda terminos: [obtener_sinonimo_base(termino) for termino in terminos]
-    )
-
-# Agrupar sinónimos en ambas columnas
-df['Index Keywords'] = agrupar_sinonimos(df['Index Keywords'])
-df['Author Keywords'] = agrupar_sinonimos(df['Author Keywords'])
-df['Index Keywords'] = eliminar_palabras_unicas(df['Index Keywords'])
-df['Author Keywords'] = eliminar_palabras_unicas(df['Author Keywords'])
-# Guardar el DataFrame procesado en un nuevo archivo CSV
-df['Index Keywords'] = df['Index Keywords'].apply('; '.join)
-df['Author Keywords'] = df['Author Keywords'].apply('; '.join)
-
-# Guardar el DataFrame procesado en un nuevo archivo CSV
-df.to_csv("G:\\Mi unidad\\2024\\Master Solis Granda Luis Eduardo\\data\\wos_scopuskeywordsfinal.csv", index=False)
-
-print("Palabras clave convertidas a singular (si corresponde) y nuevo archivo guardado.")
-'''
+df.to_csv("G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\data\\wos_scopuslibrería_procesado.csv", index=False)

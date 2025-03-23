@@ -44,9 +44,10 @@ try:
 
     # Cargar los datos
     
-    scopus_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\scopus.csv"
+    scopus_file_path = "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\scopusdata.csv"
     
-    wos_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\savedrecs.xls"
+    
+    wos_file_path = "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\savedrecsexcel.xls"
     try:
         # Leer los datos del archivo CSV de Scopus
         scopus_df = pd.read_csv(scopus_file_path)
@@ -131,7 +132,7 @@ try:
 
 
      # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path ="G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopus_repeatedstitles.csv"
+    output_file_path ="G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
   
     
@@ -339,7 +340,7 @@ try:
             combined_df[column] = combined_df[column].apply(process_record)
 
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibrería.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         # Resultados finales

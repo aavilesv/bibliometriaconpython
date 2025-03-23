@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Cargar el archivo CSV
-ruta =  "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuslibrería_procesado.csv"
+ruta = "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibrería.csv"
 df = pd.read_csv(ruta)
 
 # Función para combinar y eliminar duplicados, manejando valores nulos
@@ -23,7 +23,7 @@ def combinar_sin_repetir(row):
 df['Author Keywords'] = df.apply(combinar_sin_repetir, axis=1)
 
 # Guardar el DataFrame resultante en un nuevo archivo CSV
-ruta_guardado =  "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\data\\wos_scopuskeywords.csv"
+ruta_guardado =  "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibreríakewyrodrs.csv"
 df.to_csv(ruta_guardado, index=False)
 
 print("Archivo guardado con la columna 'Author Keywords' actualizada y sin repeticiones en:", ruta_guardado)
