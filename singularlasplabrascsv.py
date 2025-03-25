@@ -58,17 +58,21 @@ def limpiar_texto(texto):
       - Cualquier carácter especial, dejando solo letras y espacios.
       - Además, convierte a minúsculas y remueve acentos.
     """
-    # Reemplaza guiones por espacios
-    texto = texto.replace('-', ' ')
-    # Elimina paréntesis y su contenido
-    texto = re.sub(r'\([^)]*\)', '', texto)
-    # Elimina caracteres especiales, dejando solo letras y espacios
-    texto = re.sub(r"[^a-zA-Z\s]", "", texto)
-    # Convierte a minúsculas
+    # 1 Convierte a minúsculas
     texto = texto.lower()
-    # Normaliza texto removiendo acentos
+    
+    # 2 Normaliza texto removiendo acentos
     texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8', 'ignore')
-    # Elimina espacios extras
+    # 3 Reemplaza guiones por espacios
+    texto = texto.replace('-', ' ')
+    # 4 Elimina paréntesis y su contenido
+    texto = re.sub(r'\([^)]*\)', '', texto)
+    # 5 Elimina caracteres especiales, dejando solo letras y espacios
+    texto = re.sub(r'[^a-z0-9\s]', '', texto)
+    #Si en algún momento necesitas conservar otros caracteres
+    #texto = re.sub(r"[^a-z0-9'\s]", '', texto)
+
+    # 6 Elimina espacios extras
     texto = re.sub(r'\s+', ' ', texto).strip()
     return texto
 
@@ -136,7 +140,7 @@ def convertir_palabras_a_singular(column):
     return palabras_procesadas
 
 # 3. Cargar el archivo CSV y aplicar la conversión
-df = pd.read_csv("G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\data\\wos_scopuslibrería.csv")
+df = pd.read_csv("G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibreríakewyrodrs.csv")
 # Aplica la función a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = convertir_palabras_a_singular(df['Index Keywords'])
 df['Author Keywords'] = convertir_palabras_a_singular(df['Author Keywords'])
@@ -240,4 +244,4 @@ def eliminar_palabras_clave(column):
 #df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
-df.to_csv("G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\data\\wos_scopuslibrería_procesado.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibrería_procesado.csv", index=False)
