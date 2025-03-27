@@ -97,36 +97,6 @@ df['Author Keywords'] = df['Author Keywords'].apply(lambda x: normalizar_keyword
 print("\nDespués de normalizar:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
-# Lista de palabras clave a eliminar (en minúsculas)
-palabras_clave_a_eliminar = [
-  "human", "Humans", "Female", "Male", "controlled study", "Adult", "major clinical study", "0", "sensitivity and specificity",
 
-    "image reconstruction", "positron emission tomography"
-]
-
-# Función para eliminar palabras clave específicas y retornar una cadena
-def eliminar_palabras_clave(column):
-    # Convertir la lista de palabras clave a eliminar a minúsculas
-    palabras_clave_a_eliminar_lower = [palabra.lower() for palabra in palabras_clave_a_eliminar]
-    
-    def process_cell(cell):
-        # Si la celda es una cadena, la dividimos en una lista usando el separador ';'
-        if isinstance(cell, str):
-            terminos = [termino.strip() for termino in cell.split(';') if termino.strip()]
-        # Si ya es una lista, la usamos directamente
-        elif isinstance(cell, list):
-            terminos = [str(termino).strip() for termino in cell if str(termino).strip()]
-        else:
-            terminos = []
-        # Filtrar los términos que, al pasar a minúsculas, estén en la lista a eliminar
-        terminos_filtrados = [termino for termino in terminos if termino.lower() not in palabras_clave_a_eliminar_lower]
-        # Unir la lista filtrada en una cadena usando '; ' como separador
-        return '; '.join(terminos_filtrados)
-
-    return column.apply(process_cell)
-
-# Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
-#df['Index Keywords'] = eliminar_palabras_clave(df['Index Keywords'])
-#df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
 df.to_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\new paper\\data\\wos_scopuslibrería_procesado.csv", index=False)
