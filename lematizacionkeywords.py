@@ -70,13 +70,33 @@ def normalizar_keywords_columna(celda, remove_stopwords=False):
     return "; ".join(tokens_normalizados)
 
 # 3. Cargar el archivo CSV
-ruta_csv = "G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibreríakewyrodrs.csv"
+ruta_csv = "G:\\Mi unidad\\2025\\Master Kerly Alvarez\\new paper\\data\\wos_scopuslibrería.csv"
 df = pd.read_csv(ruta_csv)
+# Guardar copia “before”
+def contar_unicos(col, df_input):
+    # Drop NA, split por “;”, strip y filtrar vacíos
+    all_keywords = (
+        df_input[col]
+        .dropna()
+        .str.split(';')
+        .explode()
+        .str.strip()
+        .loc[lambda s: s != ""]
+    )
+    return all_keywords.unique().shape[0]
+
+# Conteo único antes de normalizar
+print("Antes de normalizar:")
+for col in ['Index Keywords', 'Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 
 # 4. Aplicar la normalización a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = df['Index Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
 df['Author Keywords'] = df['Author Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
-
+# Conteo único después de normalizar
+print("\nDespués de normalizar:")
+for col in ['Index Keywords', 'Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [
   "human", "Humans", "Female", "Male", "controlled study", "Adult", "major clinical study", "0", "sensitivity and specificity",
@@ -109,4 +129,4 @@ def eliminar_palabras_clave(column):
 #df['Index Keywords'] = eliminar_palabras_clave(df['Index Keywords'])
 #df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
-df.to_csv("G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslibrería_procesado.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\Master Kerly Alvarez\\new paper\\data\\wos_scopuslibrería_procesado.csv", index=False)
