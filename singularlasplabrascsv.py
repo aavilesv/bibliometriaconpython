@@ -2,8 +2,8 @@ import pandas as pd
 import nltk
 import unicodedata
 import spacy  # Para análisis sintáctico (reordenamiento dinámico)
-from collections import Counter
-import numpy as np
+
+
 from nltk.corpus import wordnet as wn
 from nltk.stem import WordNetLemmatizer
 from nltk.tag import pos_tag
@@ -144,40 +144,7 @@ df = pd.read_csv("G:\\Mi unidad\\2025\\Master Yindra flores\\data\\wos_scopuslib
 # Aplica la función a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = convertir_palabras_a_singular(df['Index Keywords'])
 df['Author Keywords'] = convertir_palabras_a_singular(df['Author Keywords'])
-# Combinar palabras de ambas columnas en un solo contador
 
-
-# Combina las palabras de ambas columnas en una sola lista
-palabras_index = df['Index Keywords'].dropna().apply(lambda x: x.split('; ')).explode().tolist()
-palabras_author = df['Author Keywords'].dropna().apply(lambda x: x.split('; ')).explode().tolist()
-palabras = palabras_index + palabras_author
-
-# Calcula la frecuencia de cada palabra
-frecuencias = Counter(palabras)
-
-# Filtrar palabras únicas (frecuencia = 1)
-palabras_unicas = {palabra for palabra, freq in frecuencias.items() if freq == 1}
-
-def eliminar_palabras_unicas_y_reconvertir(column):
-    def process_cell(cell):
-        # Si la celda es una cadena, la dividimos en una lista de términos usando ';'
-        if isinstance(cell, str):
-            terminos = [termino.strip() for termino in cell.split(';') if termino.strip()]
-        # Si ya es una lista o un array, la convertimos a lista
-        elif isinstance(cell, (list, np.ndarray)):
-            terminos = [str(termino).strip() for termino in cell if str(termino).strip()]
-        else:
-            terminos = []
-        # Filtrar los términos eliminando aquellos que aparecen solo una vez en todo el dataset
-        terminos_filtrados = [termino for termino in terminos if termino not in palabras_unicas]
-        # Unir la lista filtrada en una cadena, separando los términos por "; "
-        return '; '.join(terminos_filtrados)
-    
-    return column.apply(process_cell)
-
-# Aplica la función a las columnas "Index Keywords" y "Author Keywords"
-#df['Index Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Index Keywords'])
-#df['Author Keywords'] = eliminar_palabras_unicas_y_reconvertir(df['Author Keywords'])
 
 # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [

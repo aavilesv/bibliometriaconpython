@@ -4,6 +4,7 @@
 import pandas as pd
 import spacy
 import re
+import numpy as np
 import unicodedata
 import matplotlib.pyplot as plt
 from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
@@ -43,8 +44,8 @@ try:
         return title
 
     # Cargar los datos
-    scopus_file_path = 'G:\\Mi unidad\\2024\\Master SONNIA GRICELDA MOLINA ORELLANA\\revista correción tú can\\data\\scopus.csv'
-    wos_file_path = 'G:\\Mi unidad\\2024\\Master SONNIA GRICELDA MOLINA ORELLANA\\revista correción tú can\\data\\savedrecs (2).xls'
+    scopus_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\datascopus.csv'
+    wos_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\dataexcel.xls'
 
     try:
         # Leer los datos del archivo CSV de Scopus
@@ -53,6 +54,11 @@ try:
         # Leer los datos del archivo Excel de Web of Science
         wos_df = pd.read_excel(wos_file_path)
         wos_df['Authors'] = wos_df['Authors'].str.replace(',', '')
+        wos_df['Author(s) ID'] = wos_df['Authors']
+        wos_df['Source'] = 'Scopus'
+        wos_df['Publication Stage'] = 'Final'
+       
+
     except Exception as e:
         print(f"Error al cargar los archivos: {e}")
         raise
@@ -130,7 +136,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2024\\Master Kerly Alvarez\\new paper\\data\\wos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -138,22 +144,28 @@ try:
         print("Los títulos repetidos han sido guardados en 'wos_scopus_repeatedstitles.csv'.\n")
     except Exception as e:
         print(f"Error al guardar el archivo CSV: {e}")
-
+    #wos_df['Ciudad'] = np.nan 
     # --- 6) Eliminar los títulos repetidos en wos_df ---
     wos_non_repeated = wos_df[~wos_df['processed_title'].isin(all_duplicates)]
     
     # Renombrar columnas de WoS para que coincidan con Scopus
     df_wos_renombrado = wos_non_repeated.rename(columns={
-        'Authors': 'Authors',
+               'Publication Stage' :'Publication Stage',
+
+        'Source': 'Source',
+        'UT (Unique WOS ID)': 'EID',
+        'Author(s) ID': 'Author(s) ID',
         'Document Type': 'Document Type',
         'Language': 'Language of Original Document',
         'Author Keywords': 'Author Keywords',
         'Keywords Plus': 'Index Keywords',
-        'Abstract': 'Abstract',
+            'Abstract': 'Abstract',
         'DOI': 'DOI',
         'Author Full Names': 'Author full names',
+        'Authors':'Authors',
         'Cited Reference Count': 'Cited by',
         'Publication Year': 'Year',
+        #'UT (Unique WOS ID)': '',
         'Source Title': 'Source title',
         'Article Title': 'Title',
         'Addresses': 'Authors with affiliations',
@@ -165,7 +177,7 @@ try:
 
     # Seleccionar solo las columnas necesarias en Web of Science
     necessary_columns = [
-        'Authors', 'Document Type', 'Language of Original Document', 'Author Keywords', 
+       'Publication Stage', 'Authors','Author(s) ID','Source','EID', 'Document Type', 'Language of Original Document', 'Author Keywords', 
         'Index Keywords', 'Abstract', 'DOI', 'Cited by', 'Year', 'Source title', 
         'Title', 'Affiliations', 'ISSN', 'Publisher', 'Link', 'Open Access', 'Author full names',
         'Scopus_SubjectArea', 'Authors with affiliations', 'processed_title'
@@ -206,6 +218,7 @@ try:
         if not isinstance(title, str):
             return ""
         # Limpieza básica del título
+        title = title.lower()
         title = re.sub(r'\([^)]*\)', '', title)  # Eliminar texto entre paréntesis
         title = title.replace('-', ' ')            # Reemplazar guiones por espacios
         title = re.sub(r'\s+', ' ', title).strip()  # Eliminar espacios redundantes
@@ -337,10 +350,20 @@ try:
     ax.set_title("Distribución de artículos únicos por fuente")
     plt.tight_layout()
     plt.show()
+    print(combined_df.dtypes)
+    for col in ["Volume", "Page count", "PubMed ID"]:
+        combined_df[col] = pd.to_numeric(combined_df[col], errors='coerce') \
+                        .astype("Int64")
+
+    # 2. Eliminar la columna 'processed_title'
+    combined_df.drop(columns="processed_title", inplace=True)
+
+
+
 
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2024\\Master SONNIA GRICELDA MOLINA ORELLANA\\revista correción tú can\\data\\wos_scopuslibrería.csv"
+    combined_output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopuslibrería.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         print("**Resultados finales:**")
