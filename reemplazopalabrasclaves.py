@@ -3,89 +3,331 @@ import re
 
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
-df = pd.read_csv("G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopuslibrería_procesadovos.csv")
+
+df = pd.read_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopuslematizar.csv")
 
 # Diccionario de palabras clave a reemplazar: clave = palabra a buscar (en minúsculas), valor = palabra de reemplazo
 palabras_clave_reemplazo = {
-    "industry 4":"industry 4.0",
-    "industry":"industry 4.0",
-    "industry 40":"industry 4.0",
-    "industry40": "industry 4.0",
-    "anylogic industry 40": "industry 4.0",
-    "digital economy industry": "digital economy",
-    "platform": "digital platform",
-    "digital platform industry": "digital platform",
-    "supply chain logistic": "supply chain logistic industry 40",
-    "open source" : "open source software",
+    "internet of thing": "internet of things",
+    "learn system": "learning system",
+    "learn algorithm": "learning algorithm",
+
+    "decision make": "decision making",
+    "predictive analytic": "predictive analytics",
+    "big datum": "big data",
+    "datum acquisition": "data acquisition",
+    "datum set": "dataset",
+    "satellite datum": "satellite data",
+    "datum mining": "data mining",
     
-    "industry 50" : "industry 5.0",
+    "ml algorithm":"machine learning",
+    "datum handle": "data handling",
+    "datum fusion": "data fusion",
+    "datum analytic": "data analytics",
+    "datum integration": "data integration",
+    "normalize difference vegetation index": "normalized difference vegetation index",
+    "ndvi": "normalized difference vegetation index",
+    "cnn": "convolutional neural network",
+    "deep cnn": "convolutional neural network",
+    "deep leanring":"deep learning",
+    "deep neural network":"deep learning",
+    "neural network":"artificial neural network",
+    "deep":"deep learning",
+    "rnn": "recurrent neural network",
+    "lstm": "long short-term memory",
+    "gru": "gated recurrent unit",
+    "ml": "machine learning",
+    "iot": "internet of things",
+   "uav": "unmanned aerial vehicle",
+    "uas": "unmanned aerial system",
+    "machine learn": "machine learning",
+  "machine learn algorithm": "machine learning",
+  "machine learn technique": "machine learning",
+  "machine learn classifier": "machine learning",
+  "machine learn prediction": "machine learning",
+    "learn machine": "machine learning",
+
+  "auto machine learning": "automated machine learning",
+  "automate machine learning": "automated machine learning",
+  "extreme learn machine": "extreme learning machine",
+    "improve extreme learning machine": "extreme learning machine",
+  "ensemble learning model": "ensemble learning",
+    "hybrid machine learning model": "hybrid machine learning",
+
+  "ensemble machine learning algorithm": "ensemble learning algorithm",
+  "extreme learn machine": "extreme learning machine",
+  "support vector machine model":"support vector machine",
+  "support vector machine regression" :"support vector machine",
+
+  "federate learn": "federated learning",
+  "few shoot learn": "few-shot learning",
+  "transfer learn": "transfer learning",
+  "transfer learn model": "transfer learning model",
+  "deep learn": "deep learning",
+  "deep learn change detection": "deep learning change detection",
+  "deep learn multi layer perceptron": "deep learning multi-layer perceptron",
+  "deep learn neural network": "deep learning neural network",
+  "deep learn predictor": "deep learning predictor",
+  "deep learn vision raspberry pi4": "deep learning vision",
+  "semi supervise learning": "semi-supervised learning",
+  "self supervise learning": "self-supervised learning",
+  "supervise learning": "supervised learning",
+  "unsupervise learning": "unsupervised learning",
+  "e learn": "e-learning",
+  "learn": "learning",
+  "learn system": "learning system",
+  "learn algorithm": "learning algorithm",
+  "learn model": "learning model",
+  "learn technique": "learning technique",
+  "learn classifier": "learning classifier",
+    "remote sense datum": "remote sensing data",
+    "image process": "image processing",
+    "image preprocesse": "image preprocessing",
+    "real time": "real-time",
+    "real time system": "real-time system",
+    "real time detection": "real-time detection",
+    "mean square error": "mean squared error",
+    "root mean square error": "root mean squared error",
+       
+   "satellite datum": "satellite data",
+    "datum acquisition": "data acquisition",
+    "datum set": "dataset",
+    "datum mining": "data mining",
+    "datum handle": "data handling",
+    "datum fusion": "data fusion",
+    "datum analytic": "data analytics",
+    "datum integration": "data integration",
+    "real world agricultural datum": "real world agricultural data",
+    "imagery datum": "imagery data",
+    "measurement datum": "measurement data",
+    "historical datum": "historical data",
+    "sensor datum": "sensor data",
+    "satellite sensor datum": "satellite sensor data",
+    "satellite remote sense datum": "satellite remote sensing data",
+    "remote sense datum": "remote sensing data",
+    "convolutional network":"convolutional neural network",
+    "advanced convolutional neural network":"convolutional neural network",
+    "advanced cnn":"convolutional neural network",
+    "internet of thing": "internet of things",
+    "iot": "internet of things",
+    "thing iot": "internet of things",
+    #"uav": "unmanned aerial vehicle",
     
-    "industrial chain":"industrial supply chain",
-    "industrial engineering": "industrial information integration engineering",
-    "industrialisation":"industrialization",
-        #"human": "reemplazo_human",
+    "remote sense technique": "remote sensing technology",
+
+        "hyperspectral image": "hyperspectral imagery",
         
-        "digitalisation" : "digitalization",
-        "digitization" : "digitalization",
-        "big datum" : "big data analysis",
-        "big datum analytic" : "big data analysis",
-        "datum analytic" : "big data analysis",
-       "decision make":"decision making",
-       "optimisation":"optimization",
-       "internet of thing": "internet of things",
-       "industrial internet of thing	": "internet of things",
-       "industrial iot": "internet of things",
-       "industrial internet": "internet of things",
-       "internet of thing technology": "internet of things",
-       
-       "iot": "internet of things",
-       "electronic commerce": "e-commerce",
-       "commerce adoption":  "e-commerce",
-       "e commerce logistic":  "e-commerce",
-       "commerce platform":  "e-commerce",
-       "e commerce adoption":  "e-commerce",
-       "e commerce platform":  "e-commerce",
-       "international e commerce":  "e-commerce",
-       "food supply": "food supply chain",
-       "e commerce adoption" :"e-commerce",
-       "e commerce": "e-commerce",
-       "electronic commerce": "e-commerce",
-       "commerce": "e-commerce",
-       "ict": "information and communication technology",
-       "rfid": "radio frequency identification",
-       "rfid technology": "radio frequency identification technology",
-       "radio frequency identification": "radio frequency identification",
-       "logistic": "logistics",
-       "ai": "artificial intelligence",
-       "database factual": "factual database",
-       "supply chain 40" : "supply chain",
-       "supply chain 4": "supply chain",
-       "650 supply chain management": "supply chain management",
-       "supply chain digitalization": "digitalization of the supply chain",
-       "digitalization of supply chain": "digitalization of the supply chain",
-       "5 g" : "5 g network",
-       "3 d printing": "3d printing",
-       "3d printer": "3d printing",
-       "3d":"3d printing",
-       "webs service": "web service",
-       "industrial technology" :"industry 4.0 technology",
-        "industry 40 technology":"industry 4.0 technology",
-        "40 technology":"industry 4.0 technology",
-        "technology 40":"industry 4.0 technology",
-        "smart technology":"smart digital technology",
-        "process datum":"data processing",
-        "datum processing":"data processing",
-
-       
-
-
-       
-
-       
-
-
-
+ "hyperspectral imagery": "hyperspectral imagery",
+ "gf 5 hyperspectral image": "gf 5 hyperspectral imagery",
+ "hyperspectral reflectance image": "hyperspectral reflectance",
+ "hyperspectral imaging datum": "hyperspectral imaging",
+ "hyperspectral remote sense image": "hyperspectral remote sensing",
+ "hyperspectral remote sense technology": "hyperspectral remote sensing",
+ "hyperspectral remote sense datum": "hyperspectral remote sensing",
+ "hyperspectral datum": "hyperspectral data",
+ 
+     "reinforcement learning":"deep reinforcement learning",
+     
+    "remote sense technology": "remote sensing technology",
+    "uas": "unmanned aerial system",
+    "ndvi": "normalized difference vegetation index",
+    "normalize difference vegetation index": "normalized difference vegetation index",
+    "cnn": "convolutional neural network",
+    "gi": "geographic information",
+    "satellite datum": "satellite data",
+    "datum acquisition": "data acquisition",
+    "datum mining": "data mining",
+    "datum fusion": "data fusion",
+    "big datum": "big data",
+    "datum set": "dataset",
+    "datum handle": "data handling",
+    "datum analysis": "data analysis",
+    "mean square error": "mean squared error",
+    "root mean square error": "root mean squared error",
+    "predictive analytic": "predictive analytics",
+    "learn system": "learning system",
+    "learn algorithm": "learning algorithm",
+    "decision make": "decision making",
+    "transfer learn": "transfer learning",
+    "e learn": "e-learning",
+    "real time": "real-time",
+    "real time system": "real-time system",
+    "real time monitor": "real-time monitoring",
     
+    
+    "convolution": "convolutional",
+    "convolution neural network": "convolutional neural network",
+
+      "precision agricultura": "precision agriculture",
+      
+    "agricolus": "agricultural",
+    "efficient agricultura": "efficient agriculture",
+    "precision agricultura": "precision agriculture",
+       
+    "smart precision agriculture": "precision agriculture",
+    "smart agriculture system": "smart agriculture",
+    "smart agriculture management": "smart agriculture",
+
+  "agriculture sector": "agricultural sector",
+    "agriculture system": "agricultural system",
+    "agriculture management": "agricultural management",
+    "agriculture technology": "agricultural technology",
+    "agriculture application": "agricultural application",
+    "agriculture monitoring": "agricultural monitoring",
+    "agriculture robot": "agricultural robot",
+    "agriculture crop": "agricultural crop",
+    "agriculture decision": "agricultural decision",
+    "agriculture production": "agricultural production",
+
+    # “agriculture x.0” versions
+    "agriculture 4": "agriculture 4.0",
+    "agriculture 40": "agriculture 4.0",
+    "agriculture 50": "agriculture 5.0",
+    "agriculture 20": "agriculture 2.0",
+
+    # iot en agricultura
+    "agricultural internet of thing":      "agricultural internet of things",
+    "agriculture internet of thing":       "agricultural internet of things",
+    "internet of agricultural thing":      "agricultural internet of things",
+    "iot in agriculture":                  "agricultural internet of things",
+    "agricultural iot":                    "agricultural internet of things",
+    "cluster base agricultural iot":       "agricultural internet of things",
+    "iot base precision agriculture":      "agricultural internet of things",
+    "precision agriculture iot sensor":    "agricultural internet of things",
+
+    # e-agriculture
+    "e agriculture": "e-agriculture",
+    "agriculture automation": "automation",
+    "uavdrone": "drone",
+   "autonomous farming drone": "drone",
+   "farm drone": "drone",
+   "drone and agriculture": "drone",
+   "drone base imaging": "drone imaging",
+   "drone image": "drone imaging",
+   "drone sensing": "drone remote sensing",
+    # british → us
+ "yield modelling": "yield modeling",
+ # mapeo de “model” vs “modeling”
+ "yield model": "yield modeling",
+
+ # forecasting
+ "yield forecast": "yield forecasting",
+ "crop yield forecasting": "yield forecasting",
+ "crop yield forecast": "yield forecasting",
+
+ # prediction
+ "yield prediction model": "yield prediction",
+ "boost crop yield prediction": "yield prediction",
+ "empirical yield prediction": "yield prediction",
+
+ # estimation
+ "early yield estimation": "yield estimation",
+ "grain yield estimation": "yield estimation",
+ "crop yield estimation": "yield estimation",
+ "yield estimate": "yield estimation",
+
+ # map/mapping
+ "yield mapping": "yield map",
+
+ # monitoring
+ "yield monitor": "yield monitoring",
+ "yield monitor system": "yield monitoring",
+ "yield monitoring system": "yield monitoring",
+
+ # valores genéricos de “yield”
+ "average yield": "yield",
+ "dry matter yield": "yield",
+ "grain yield": "yield",
+ "biennial yield": "yield",
+ "high quality yield": "yield",
+ "low yield": "yield",
+
+ # corrección de typo
+ "yield and cost benefit analyse": "yield and cost benefit analysis",
+
+ # variantes de alfalfa
+ "alfalpha yield and quality": "alfalfa yield and quality",
+ "alfalfa yield and quality": "alfalfa yield and quality",
+  # variantes de “yield prediction”
+   "crop yield prediction": "yield prediction",
+   "yield prediction model": "yield prediction",
+   "boost crop yield prediction": "yield prediction",
+   "empirical yield prediction": "yield prediction",
+   "maize yield prediction": "yield prediction",
+   "soybean yield prediction": "yield prediction",
+   "corn yield prediction": "yield prediction",
+   "cotton yield prediction": "yield prediction",
+   "rice yield prediction": "yield prediction",
+   "sugarcane yield prediction": "yield prediction",
+   "paddy yield prediction": "yield prediction",
+   "peanut yield prediction": "yield prediction",
+
+   # agrupación de “prediction accuracy”
+   "prediction performance":      "prediction accuracy",
+   "prediction quality":          "prediction accuracy",
+   "crop prediction accuracy":    "prediction accuracy",
+
+   # ortografía us de “modelling”
+   "prediction modelling": "prediction modeling",
+
+   # sistemas de predicción
+   "crop prediction system": "prediction system",
+
+   # predicción de producción
+   "crop production prediction": "production prediction",
+   "predictive model":"predictive modeling",
+   "predictive analytic":"predictive analytics",
+   # smart farming variantes
+   "smart farm": "smart farming",
+   "smart farming system": "smart farming",
+   "smart farming decision": "smart farming",
+   "smart farming industry": "smart farming",
+   "trend in smart farming": "smart farming",
+
+   # smallholder farming variantes
+   "smallholder farm": "smallholder farming",
+
+   # sustainable farming variantes
+   "sustainable farming practice": "sustainable farming",
+
+   # farm management
+   "farm management system": "farm management",
+
+   # experimentación en la finca
+   "on farm experiment": "on farm experimentation",
+
+   # robótica agrícola
+   "farming bot": "farmbot",
+
+   # agricultura mixta
+   "mix farming": "mixed farming",
+   "digital farming": "digital agriculture",
+  "digital image": "digital imaging",
+  "digital imagery": "digital imaging",
+  "digital greenhouse system": "digital greenhouse",
+  
+  
+"unmanned vehicle":"unmanned aerial vehicle", 
+"autonomous aerial vehicle": "unmanned aerial vehicle",
+"autonomous unmanned aerial vehicle":"unmanned aerial vehicle",
+"unmanned arial vehicle":"unmanned aerial vehicle",
+    "small unmanned aerial vehicle": "unmanned aerial vehicle",
+    "aerial vehicle": "unmanned aerial vehicle",
+    "multiple linear regression method": "multiple linear regression",
+  "multiple linear regression model": "multiple linear regression",
+  "linear regression model": "linear regression",
+  "linear regression analysis": "linear regression",
+  "near neighbor search": "k-nearest neighbor",
+  "near neighbor analysis": "k-nearest neighbor",
+  "k near neighbor": "k-nearest neighbor",
+  "knn": "k-nearest neighbor",
+  "svm":"support vector machine",
+  "svm classifier":"support vector machine",
+  "svnn":"support vector machine",
+  "support vector machine model":"support vector machine",
+  "support vector machine regression":"support vector machine",
+
+
 }
 
 def reemplazar_palabras_clave(column, diccionario_reemplazo):
@@ -154,5 +396,5 @@ df['Index Keywords'] = reemplazar_parciales(df['Index Keywords'], patrones_parci
 df['Author Keywords'] = reemplazar_parciales(df['Author Keywords'], patrones_parciales)
 # Guardar el DataFrame modificado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
-df.to_csv("G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopus_reemplazado.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\wos_scopus_reemplazado.csv", index=False)
 print("Palabras clave reemplazadas y nuevo archivo guardado.")

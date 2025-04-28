@@ -70,8 +70,8 @@ def normalizar_keywords_columna(celda, remove_stopwords=False):
     return "; ".join(tokens_normalizados)
 
 # 3. Cargar el archivo CSV
-#"G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
-ruta_csv = "G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopuslibrería.csv"
+#ruta_csv = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
+ruta_csv = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus.csv"
 df = pd.read_csv(ruta_csv)
 # Guardar copia “before”
 def contar_unicos(col, df_input):
@@ -93,6 +93,7 @@ for col in ['Index Keywords', 'Author Keywords']:
 
 # 4. Aplicar la normalización a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = df['Index Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
+#df['bothKeywords'] = df['bothKeywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
 df['Author Keywords'] = df['Author Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
 # Conteo único después de normalizar
 print("\nDespués de normalizar:")
@@ -100,4 +101,6 @@ for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
-df.to_csv("G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\wos_scopuslibrería_procesado.csv", index=False)
+ 
+#df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopuslematizar.csv", index=False)

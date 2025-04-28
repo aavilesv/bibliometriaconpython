@@ -2,11 +2,11 @@ import pandas as pd
 import numpy as np
 
 # Definir la ruta base
-ruta = r'G:\\Mi unidad\\2025\\master Ms. JAVIER ANDRÉS CHILIQUINGA AMAYA'
+ruta = r'G:\\Mi unidad\\2025\\Master Adriana Margarita Sanchez Caicedo\\revistas'
 
 # Definir la ruta completa de los archivos
-archivo_data1 = ruta + r'\\revista seleccionar.xlsx'
-archivo_data2 = ruta + r'\\ext_list_February_2025.xlsx'
+archivo_data1 = ruta + r'\\revistas.xlsx'
+archivo_data2 = ruta + r'\\ext_list_March_2025.xlsx'
 
 # Cargar ambos archivos Excel
 df1 = pd.read_excel(archivo_data1)

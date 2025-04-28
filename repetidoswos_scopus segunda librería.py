@@ -45,8 +45,8 @@ try:
 
     # Cargar los datos
     
-    scopus_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\referencias\\scopus (1).csv'
-    wos_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\referencias\\referecnias wos.xls'
+    scopus_file_path = 'G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datascopus.csv'
+    wos_file_path = 'G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos.xls'
 
     try:
         # Leer los datos del archivo CSV de Scopus
@@ -137,7 +137,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\referencias\\wos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -190,7 +190,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
+    filtro = (combined_df['Year'] >= 2004) & (combined_df['Year'] <= 2024)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -255,11 +255,24 @@ try:
     # Función para normalizar países
     def normalize_country(country):
         country = re.sub(r'(?i)\b(usa|u\.s\.a\.|united states of america|united states)\b', 'United States', country)
+        
+        country = re.sub(r'(?i)\brepublic of Korea\b', 'South Korea', country)
         country = re.sub(r'(?i)\bpeoples r china\b', 'China', country)
         country = re.sub(r'(?i)\brussian federation\b', 'Russia', country)
         country = re.sub(r'(?i)\bengland\b', 'United Kingdom', country)
         country = re.sub(r'(?i)\bir\b', 'Iran', country)
         country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)
+        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)   
+        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)
+
+        country = re.sub(r"(?i)\bCôte d'Ivoire\b", "Ivory Coast", country)
+        country = re.sub(r"(?i)\bCote d'Ivoire\b", "Ivory Coast", country)
+        country = re.sub(r"(?i)\bCote Ivoire\b", "Ivory Coast", country)
+        
+        
+
+       
+
         country = re.sub(r'\s+', ' ', country).strip()
         return country
     
@@ -364,7 +377,7 @@ try:
 
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 2\\referencias\\wos_scopuslibrería.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         print("**Resultados finales:**")
