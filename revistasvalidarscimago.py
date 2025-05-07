@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # Definir la ruta base
-ruta = r'G:\\Mi unidad\\2025\\Master Adriana Margarita Sanchez Caicedo\\revistas'
+ruta = r'G:\\Mi unidad\\2025\\master Kevin Castillo\\artículo nuevo\\revistas'
 
 # Definir la ruta completa de los archivos
 archivo_data1 = ruta + r'\\revistas.xlsx'

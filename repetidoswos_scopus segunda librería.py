@@ -45,8 +45,8 @@ try:
 
     # Cargar los datos
     
-    scopus_file_path = 'G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datascopus.csv'
-    wos_file_path = 'G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos.xls'
+    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datascopus.csv'
+    wos_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\data740.xls'
 
     try:
         # Leer los datos del archivo CSV de Scopus
@@ -137,7 +137,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "GG:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -222,7 +222,7 @@ try:
         title = title.lower()
         title = re.sub(r'\([^)]*\)', '', title)  # Eliminar texto entre paréntesis
         title = title.replace('-', ' ')            # Reemplazar guiones por espacios
-        title = re.sub(r'\s+', ' ', title).strip()  # Eliminar espacios redundantes
+        #title = re.sub(r'\s+', ' ', title).strip()  # Eliminar espacios redundantes
         title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode('utf-8', 'ignore')
         # Capitalizar cada palabra (formato título)
         if not title.isupper():
@@ -252,57 +252,52 @@ try:
     
     combined_df[['Affiliations', 'Authors with affiliations']] = combined_df.apply(fill_missing_values, axis=1)
     
-    # Función para normalizar países
-    def normalize_country(country):
-        country = re.sub(r'(?i)\b(usa|u\.s\.a\.|united states of america|united states)\b', 'United States', country)
+        # Función para normalizar países
+    def normalize_country(text):
+        # aquí lanzas cada re.sub sobre todo el record
+  
+        text = re.sub(r'(?i)\b(?:usa|u\.s\.a\.|united states of america|united states)\b', 'United States', text)
+        text = re.sub(r'(?i)\b(?:uk|u\.k\.|united kingdom)\b', 'United Kingdom', text)
+        text = re.sub(r'(?i)\b(?:united arab emirates)\b', 'United Arab Emirates', text)
+        text = re.sub(r'(?i)\brepublic of korea\b', 'South Korea', text)
+        text = re.sub(r'(?i)\brepublic of korea\b', 'South Korea', text)
+        text = re.sub(r'(?i)\bpeoples r china\b', 'China', text)
+        text = re.sub(r'(?i)\brussian federation\b', 'Russia', text)
+        text = re.sub(r'(?i)\bengland\b', 'United Kingdom', text)
+     
+        # Un solo patrón para Viet Nam (insensible a espacios)
+        text = re.sub(r'(?i)\bviet\s?nam\b', 'Vietnam', text)
+        # Ivory Coast
+        text = re.sub(r"(?i)\bCôte d'Ivoire\b", "Ivory Coast", text)
+        text = re.sub(r"(?i)\bCote d'Ivoire\b", "Ivory Coast", text)
+        text = re.sub(r"(?i)\bCote Ivoire\b",   "Ivory Coast", text)        
+        text = re.sub(r"(?i)\bDominican Rep\b", "Dominican Republic", text)
+        text = re.sub(r"(?i)\bDEM REP CONGO\b", "Congo", text)
+        text = re.sub(r"(?i)\bDemocratic Republic of the Congo\b", "Congo", text)
+        text = re.sub(r"(?i)\bTurkiye\b", "Turkey", text)
         
-        country = re.sub(r'(?i)\brepublic of Korea\b', 'South Korea', country)
-        country = re.sub(r'(?i)\bpeoples r china\b', 'China', country)
-        country = re.sub(r'(?i)\brussian federation\b', 'Russia', country)
-        country = re.sub(r'(?i)\bengland\b', 'United Kingdom', country)
-        country = re.sub(r'(?i)\bir\b', 'Iran', country)
-        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)
-        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)   
-        country = re.sub(r'(?i)\bviet nam\b', 'Vietnam', country)
-
-        country = re.sub(r"(?i)\bCôte d'Ivoire\b", "Ivory Coast", country)
-        country = re.sub(r"(?i)\bCote d'Ivoire\b", "Ivory Coast", country)
-        country = re.sub(r"(?i)\bCote Ivoire\b", "Ivory Coast", country)
         
         
+        return text
 
-       
-
-        country = re.sub(r'\s+', ' ', country).strip()
-        return country
-    
-    # Función para procesar cada registro (afiliaciones)
+    # —————————————————————————————
+    # Nuevo process_record: solo limpia corchetes y normaliza el texto entero
+    # —————————————————————————————
     def process_record(record):
         if pd.isna(record):
             return record
-        record = re.sub(r'\[(.*?)\]', lambda m: m.group(0).replace(',', ''), record)  
-        fragments = record.split(';')
-        processed_fragments = []
-        for fragment in fragments:
-            fragment = fragment.strip()
-            if ',' in fragment:
-                parts = fragment.rsplit(',', 1)
-                main_info = parts[0].strip()
-                country_info = parts[1].strip()
-                country_info = re.sub(r'[0-9]+', '', country_info)
-                country_info = re.sub(r'\b[A-Z]{1,2}\b', '', country_info)
-                country_info = country_info.strip()
-                normalized_country = normalize_country(country_info)
-                processed_fragments.append(f"{main_info}, {normalized_country}")
-            else:
-                processed_fragments.append(fragment)
-        return '; '.join(processed_fragments)
-    
-    # Aplicar la función a las columnas seleccionadas
-    columns_to_process = ['Affiliations', 'Authors with affiliations']
-    for column in columns_to_process:
-        if column in combined_df.columns:
-            combined_df[column] = combined_df[column].apply(process_record)
+        # 1) quitar comas internas en corchetes
+        record = re.sub(r'\[(.*?)\]', lambda m: m.group(0).replace(',', ''), record)
+        # 2) normalizar cualquier mención de país dentro del texto
+        record = normalize_country(record)
+        return record
+
+    # —————————————————————————————
+    # Aplicación a las columnas
+    # —————————————————————————————
+    for col in ['Affiliations', 'Authors with affiliations']:
+        if col in combined_df.columns:
+            combined_df[col] = combined_df[col].apply(process_record)
 
     # --------------------------------------------------------------
     # Bloque para calcular y mostrar las estadísticas de salida
@@ -377,7 +372,7 @@ try:
 
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         print("**Resultados finales:**")

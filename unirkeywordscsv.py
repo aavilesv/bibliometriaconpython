@@ -2,7 +2,7 @@ import pandas as pd
 from collections import Counter
 import numpy as np
 # Cargar el archivo CSV
-ruta = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopuslematizar.csv"
+ruta = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuslematizar.csv"
        
 
 df = pd.read_csv(ruta)
@@ -47,13 +47,31 @@ def combinar_sin_repetir(row):
 df['Combined Keywords'] = df.apply(combinar_sin_repetir, axis=1)
     
   # 2. Eliminar la columna 'processed_title'
+def contar_unicos(col, df_input):
+    # Drop NA, split por “;”, strip y filtrar vacíos
+    all_keywords = (
+        df_input[col]
+        .dropna()
+        .str.split(';')
+        .explode()
+        .str.strip()
+        .loc[lambda s: s != ""]
+    )
+    return all_keywords.unique().shape[0]
 
+# Conteo único antes de normalizar
+print("Antes de normalizar:")
+for col in ['Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 df['Author Keywords'] = df['Combined Keywords']
 df.drop(columns="Combined Keywords", inplace=True)
 
+print("\nDespués de normalizar:")
+for col in ['Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 # Guardar el DataFrame resultante en un nuevo archivo CSV
 
-ruta_guardado = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopuskeywords.csv"
+ruta_guardado = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuskeywords.csv"
 df.to_csv(ruta_guardado, index=False)
 
 print("Archivo guardado con la columna 'Author Keywords' actualizada y sin repeticiones en:", ruta_guardado)

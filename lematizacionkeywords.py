@@ -71,7 +71,7 @@ def normalizar_keywords_columna(celda, remove_stopwords=False):
 
 # 3. Cargar el archivo CSV
 #ruta_csv = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
-ruta_csv = "G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopus.csv"
+ruta_csv = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
 df = pd.read_csv(ruta_csv)
 # Guardar copia “before”
 def contar_unicos(col, df_input):
@@ -103,4 +103,4 @@ for col in ['Index Keywords', 'Author Keywords']:
 # Opcional: Guardar el DataFrame procesado en un nuevo CSV
  
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
-df.to_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\datawos_scopuslematizar.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuslematizar.csv", index=False)
