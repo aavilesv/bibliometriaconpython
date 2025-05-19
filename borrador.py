@@ -1,30 +1,75 @@
-import matplotlib.pyplot as plt
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-# Crear figura
-plt.figure(figsize=(10, 13))
-steps = [
-    ("Identification\nWoS + Scopus: 1,478 records", 0.9),
-    ("After duplicates\n1,024 record", 0.7),
-    ("Screening\nEmpirical heuristic: 1,024 records", 0.5),
-    ("Excluded\nNon-experimental or ≤15 citations: 974", 0.3),
-    ("Inclusion\nParadigmatic: 50 studies", 0.1)
-]
+"""
+Script: scrape_unemi_evaluacion_selenium.py
+Descripción:
+    Usa Selenium para autenticar en el SGA de UNEMI y extraer la tabla de evaluación docente.
+Requisitos:
+    - Chrome/Edge (Chromium) + ChromeDriver/EdgeDriver en PATH
+    - pip install selenium
+Uso:
+    python scrape_unemi_evaluacion_selenium.py
+"""
 
-# Dibujar cajas con flechas
-for text, y in steps:
-    plt.text(
-        0.5, y, text,
-        ha='center', va='center',
-        bbox=dict(boxstyle='round', facecolor='white', edgecolor='black', pad=0.5),
-        fontsize=10
-    )
-    # Flecha hacia el siguiente paso
-    if y > 0.1:
-        plt.annotate(
-            "", xy=(0.5, y - 0.05), xytext=(0.5, y - 0.15),
-            arrowprops=dict(arrowstyle="->", lw=1.2)
+import sys
+from getpass import getpass
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+def main():
+    USER = "aavilesv"
+    PASS = getpass("Contraseña UNEMI: ")
+
+    # 1. Inicializar WebDriver (Chrome)
+    driver = webdriver.Chrome()  # o webdriver.Edge()
+
+    try:
+        # 2. Intentar acceder a la página de evaluación (te redirigirá al login)
+        target_url = (
+            "https://sga.unemi.edu.ec/adm_evaluaciondocenteinvestigacioncoord"
+            "?action=procesoevacoor"
+            "&eva_id=OPPQQRRSSTTUUVVWWXXX"
+            "&s=ALMEIDA+MONGE+ELKA+JENNIFER"
         )
+        driver.get(target_url)
 
-plt.axis('off')
-plt.tight_layout()
-plt.show()
+        # 3. Esperar a que aparezcan los campos de login y rellenarlos
+        wait = WebDriverWait(driver, 10)
+
+        # Ajusta estos selectores si los campos tienen otro name/id
+        user_field = wait.until(EC.presence_of_element_located((By.NAME, "username")))
+        pass_field = driver.find_element(By.NAME, "password")
+
+        user_field.send_keys(USER)
+        pass_field.send_keys(PASS)
+
+        # Localiza y pulsa el botón de login
+        login_button = driver.find_element(By.CSS_SELECTOR, "button[type=submit]")
+        login_button.click()
+
+        # 4. Esperar a que volvamos al target_url (formulario ya no estará)
+        wait.until(EC.url_contains("adm_evaluaciondocenteinvestigacioncoord"))
+
+        # 5. Ahora extraer la tabla de datos
+        # Ajusta el selector al ID/clase real de la tabla
+        table = wait.until(EC.presence_of_element_located((By.ID, "tabla-datos")))
+
+        # 6. Recorrer filas y celdas
+        rows = table.find_elements(By.TAG_NAME, "tr")
+        for row in rows:
+            cols = row.find_elements(By.TAG_NAME, "td")
+            if not cols:
+                continue
+            values = [col.text.strip() for col in cols]
+            print(values)
+
+    except Exception as e:
+        print("ERROR:", e, file=sys.stderr)
+    finally:
+        driver.quit()
+
+if __name__ == "__main__":
+    main()

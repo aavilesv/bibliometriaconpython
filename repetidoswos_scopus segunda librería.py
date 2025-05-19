@@ -44,9 +44,9 @@ try:
         return title
 
     # Cargar los datos
-    
-    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datascopus.csv'
-    wos_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\data740.xls'
+
+    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Estefania Landires\\scopus.csv'
+    wos_file_path = 'G:\\Mi unidad\\2025\\Master Estefania Landires\\savedrecs.xls'
 
     try:
         # Leer los datos del archivo CSV de Scopus
@@ -137,7 +137,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "GG:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -372,7 +372,7 @@ try:
 
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
         print("**Resultados finales:**")

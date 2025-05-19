@@ -9,7 +9,7 @@ import re
 countries = [
     "Algeria", "Argentina", "Australia", "Austria", "Bangladesh", "Belgium",
     "Bosnia and Herzegovina", "Brazil", "Bulgaria", "Canada", "China",
-    "Colombia", "Costa Rica", "Czech Republic", "Denmark", "Egypt",
+    "Colombia", "Costa Rica", "Czech Republic", "Denmark", "Egypt", "Chile", 
     "Ethiopia", "Finland", "France", "Germany", "Ghana",
     "Greece", "Hungary", "India", "Indonesia", "Iran", "Iraq", "Ireland",
     "Israel", "Italy", "Japan", "Jordan", "Kazakhstan", "Kenya", "Lebanon",
@@ -78,8 +78,8 @@ def extract_countries_ner(text: str) -> str:
 # —————————————————————————————
 # 2) Carga y aplicación
 # —————————————————————————————
-ruta_entrada = r"G:\Mi unidad\2025\master kevin castillo\artículo nuevo\data\datawos_scopus.csv"
-ruta_salida  = r"G:\Mi unidad\2025\master kevin castillo\artículo nuevo\data\datawos_scopus_con_paises.csv"
+ruta_entrada = r"G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
+ruta_salida  = r"G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus_con_paises.csv"
 
 df = pd.read_csv(ruta_entrada, encoding="utf-8-sig")
 df["Texto_combinado"] = df["Affiliations"].fillna("") + " " + df["Authors with affiliations"].fillna("")

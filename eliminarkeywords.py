@@ -3,15 +3,29 @@ import pandas as pd
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\\wos_scopus_reemplazado.csv")
+df = pd.read_csv("G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuslematizar.csv")
    # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [
 
-"article", "dataset", "food supply", "forestry", "human", "animal",
-    "united states", "china", "australia", "canada", "india", "italy", "greece",
-    "spain", "human", "animal", "biodiversity", "ecology", "ecosystem",
-    "economic", "develop country", "develop world", "e-learning", "android",
-    "bluetooth", "http", "computer circuit", "computer simulation", "user interface"
+    "article", "human", "human experiment", "female", "male", "adult",
+    "model", "performance", "young adult", "artificial intelligence",
+    "control study", "major clinical study", "physiology", "product design",
+    "priority journal", "brainstorm", "communication", "decision making",
+    "management", "write", "child", "experience", "gender difference",
+    "language", "sustainability", "task performance", "torrance test",
+    "work memory", "assessment", "brain", "chatgpt", "entrepreneurship education",
+    "teacher", "technology", "art", "culture", "engineering", "engineering design",
+    "exercise", "faculty", "abdominal obesity", "abduction", "Alzheimer’s disease",
+    "anorexia nervosa", "anemia", "antigen", "arterial hypertension", "arthritis",
+    "asthma", "bipolar disorder", "blood vessel", "brain tumor", "cancer",
+    "cell proliferation", "chemotherapy", "chronic pain", "cardiovascular disease",
+    "coronavirus", "coronavirus disease 2019", "coronary artery", "diabetes",
+    "enzyme kinetics", "gene expression", "heart failure", "hypertension",
+    "immunology", "infection", "kidney failure", "leukemia", "lipid metabolism",
+    "mitochondria", "nephrology", "oncology", "osteoporosis", "Parkinson’s disease",
+    "pharmacology", "quantum mechanics", "radiation therapy", "renal failure",
+    "rheumatology", "sepsis", "stroke", "thrombosis", "viral load", "covid 19",
+    "hong kong"
 
 ]
 
@@ -45,5 +59,5 @@ df['Author Keywords'] = eliminar_palabras_clave(df['Author Keywords'])
 # Guardar el DataFrame filtrado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv("G:\\Mi unidad\\2025\\master kevin castillo\\artículo nuevo\\data\datawos_scopuseliminar.csv", index=False)
+df.to_csv("G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuslematizar.csv", index=False)
 print("Palabras clave específicas eliminadas y nuevo archivo guardado.")
