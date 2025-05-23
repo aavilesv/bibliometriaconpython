@@ -4,7 +4,7 @@
 import pandas as pd
 import spacy
 import re
-import numpy as np
+
 import unicodedata
 import matplotlib.pyplot as plt
 from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
@@ -40,6 +40,16 @@ try:
         
         # Eliminar múltiples espacios
         title = re.sub(r'\s+', ' ', title).strip()
+        # 5. Lematización (opcional)
+        doc = nlp(title)
+        lemmas = [
+            
+            token.lemma_ if token.lemma_ != "-PRON-" else token.text
+            for token in doc
+                    # Filtra nuevamente stop-words y signos por seguridad
+            if not (token.is_stop or token.is_punct or token.is_space)          ]
+        
+        title = " ".join(lemmas)
         
         return title
 
@@ -390,7 +400,7 @@ try:
     ax.set_title("Distribución de artículos únicos por fuente")
     plt.tight_layout()
     plt.show()
-    print(combined_df.dtypes)
+
     for col in ["Volume", "Page count", "PubMed ID"]:
         combined_df[col] = pd.to_numeric(combined_df[col], errors='coerce') \
                         .astype("Int64")

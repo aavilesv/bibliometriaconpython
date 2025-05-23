@@ -162,9 +162,9 @@ vocab_global = sorted(
 
 # Token sort ratio
 df['Author Keywords'] = df['Author Keywords'] \
-    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=85, method='token_sort'))
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='token_sort'))
 df['Index Keywords'] = df['Index Keywords'] \
-    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=85, method='token_sort'))
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='token_sort'))
 print("\nDespués de token_sorto:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
