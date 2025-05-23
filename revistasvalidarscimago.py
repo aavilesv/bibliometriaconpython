@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # Definir la ruta base
-ruta = r'G:\\Mi unidad\\2025\\master Kevin Castillo\\artículo nuevo\\revistas'
+ruta = r'G:\\Mi unidad\\2025\\codigos bibliometria NPL\\'
 
 # Definir la ruta completa de los archivos
 archivo_data1 = ruta + r'\\revistas.xlsx'
@@ -39,6 +39,7 @@ df1['Active or Inactive'] = df1['Issn'].apply(obtener_estado)
 
 # Guardar el DataFrame actualizado en un nuevo archivo Excel en la misma ruta
 archivo_salida = ruta + r'\\data1_actualizado.xlsx'
+df1 = df1.drop_duplicates()
 df1.to_excel(archivo_salida, index=False)
 
 print(f"Proceso completado. El archivo '{archivo_salida}' se ha guardado con la nueva columna.")

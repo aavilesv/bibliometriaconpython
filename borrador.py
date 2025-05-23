@@ -1,75 +1,48 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+data_csv = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\"
 
-"""
-Script: scrape_unemi_evaluacion_selenium.py
-Descripción:
-    Usa Selenium para autenticar en el SGA de UNEMI y extraer la tabla de evaluación docente.
-Requisitos:
-    - Chrome/Edge (Chromium) + ChromeDriver/EdgeDriver en PATH
-    - pip install selenium
-Uso:
-    python scrape_unemi_evaluacion_selenium.py
-"""
 
-import sys
-from getpass import getpass
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
 
-def main():
-    USER = "aavilesv"
-    PASS = getpass("Contraseña UNEMI: ")
+# Ruta al archivo CSV
+data_csv = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\Implicaciones gerenciales y toma de decisiones.csv"
 
-    # 1. Inicializar WebDriver (Chrome)
-    driver = webdriver.Chrome()  # o webdriver.Edge()
+# Cargar datos desde CSV
+df = pd.read_csv(data_csv, dtype=str).fillna('')
 
-    try:
-        # 2. Intentar acceder a la página de evaluación (te redirigirá al login)
-        target_url = (
-            "https://sga.unemi.edu.ec/adm_evaluaciondocenteinvestigacioncoord"
-            "?action=procesoevacoor"
-            "&eva_id=OPPQQRRSSTTUUVVWWXXX"
-            "&s=ALMEIDA+MONGE+ELKA+JENNIFER"
-        )
-        driver.get(target_url)
+# Columnas de interés de Scopus
+columnas_busqueda = ['Title', 'Abstract', 'Author Keywords', 'Index Keywords']
 
-        # 3. Esperar a que aparezcan los campos de login y rellenarlos
-        wait = WebDriverWait(driver, 10)
+# Lista de términos a buscar (ya en minúsculas)	
+terminos = [
+      
+   
+     "managerial implications", "business value", "strategic decision making", 
+    "return on investment", "competitive advantage", "marketing strategy", 
+    "AI governance", "adoption barriers",
 
-        # Ajusta estos selectores si los campos tienen otro name/id
-        user_field = wait.until(EC.presence_of_element_located((By.NAME, "username")))
-        pass_field = driver.find_element(By.NAME, "password")
+    "cost–benefit analysis", "organizational readiness", "change management", 
+    "C-level adoption", "KPI"
 
-        user_field.send_keys(USER)
-        pass_field.send_keys(PASS)
+    ]
+# Normalizar todo a minúsculas en las columnas de búsqueda
+df[columnas_busqueda] = df[columnas_busqueda].apply(lambda col: col.str.lower())
 
-        # Localiza y pulsa el botón de login
-        login_button = driver.find_element(By.CSS_SELECTOR, "button[type=submit]")
-        login_button.click()
+# Función que verifica si algún término aparece en el texto
+def contiene_termino(texto):
+    return any(term in texto for term in terminos)
 
-        # 4. Esperar a que volvamos al target_url (formulario ya no estará)
-        wait.until(EC.url_contains("adm_evaluaciondocenteinvestigacioncoord"))
+# Crear máscara para filas que contienen al menos un término en cualquiera de las columnas
+mask = df[columnas_busqueda].applymap(contiene_termino).any(axis=1)
 
-        # 5. Ahora extraer la tabla de datos
-        # Ajusta el selector al ID/clase real de la tabla
-        table = wait.until(EC.presence_of_element_located((By.ID, "tabla-datos")))
+# Filtrar el DataFrame según la máscara
+df_filtrado = df.loc[mask].copy()
 
-        # 6. Recorrer filas y celdas
-        rows = table.find_elements(By.TAG_NAME, "tr")
-        for row in rows:
-            cols = row.find_elements(By.TAG_NAME, "td")
-            if not cols:
-                continue
-            values = [col.text.strip() for col in cols]
-            print(values)
+# Mostrar cuántas filas cumplen el criterio
+print(f"Filas encontradas: {len(df_filtrado)}")
 
-    except Exception as e:
-        print("ERROR:", e, file=sys.stderr)
-    finally:
-        driver.quit()
+# Guardar en Excel
 
-if __name__ == "__main__":
-    main()
+data_salida = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\Implicaciones gerenciales y toma de decisionesresultados_scopus_filtrados.xlsx"
+with pd.ExcelWriter(data_salida, engine='openpyxl') as writer:
+    df_filtrado.to_excel(writer, index=False, sheet_name='Filtrados')
+print(f"Archivo guardado en: {data_salida}")

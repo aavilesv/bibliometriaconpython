@@ -41,7 +41,7 @@ countries = [
     "Solomon Islands", "Somalia", "South Sudan", "Sudan", "Suriname",
     "Tajikistan", "Tanzania", "Timor-Leste", "Togo", "Tonga",
     "Trinidad and Tobago", "Turkmenistan", "Tuvalu", "Uganda", "Uruguay",
-    "Vanuatu", "Venezuela", "Yemen", "Zambia"
+    "Vanuatu", "Venezuela", "Yemen", "Zambia", "Swaziland"
 ]
 
 # —————————————————————————————
@@ -63,7 +63,11 @@ def extract_countries_ner(text: str) -> str:
     for ent in doc.ents:
         if ent.label_ == "GPE":
             cand = ent.text.strip()
-            best, score, _ = process.extractOne(cand, countries, scorer=fuzz.token_sort_ratio)
+            best, score, _ = process.extractOne(cand, countries, scorer=fuzz.token_set_ratio)
+            #token_set_ratio, Esta función es ideal cuando las cadenas contienen las mismas palabras pero pueden
+            #tener palabras adicionales o faltantes, y el orden no es relevante.
+
+
             if score >= 95 and best not in seen:
                 seen.append(best)
                 out.append(best)

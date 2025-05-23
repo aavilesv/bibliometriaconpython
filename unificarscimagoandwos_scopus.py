@@ -1,5 +1,5 @@
 import pandas as pd
-
+##  usar por favor esto para poder validar todo from rapidfuzz import fuzz, process
 # Rutas de los archivos SCImago y Scopus
 scimago_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 scopus_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\datafinal.csv"

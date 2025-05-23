@@ -1,79 +1,123 @@
 import pandas as pd
-import re
-import unicodedata
+import re, unicodedata
 import spacy
+from rapidfuzz import fuzz, process
 
-# Cargar el modelo de spaCy para inglés (para español podrías usar 'es_core_news_sm')
+# --- 0) Carga tu modelo spaCy ---
 nlp = spacy.load('en_core_web_sm')
 
-def normalizar_texto_spacy(texto, remove_stopwords=False):
-    """
-    Normaliza un texto en dos etapas:
-      1. Limpieza básica:
-         - Conversión a minúsculas.
-         - Remoción de acentos.
-         - Reemplazo de guiones por espacios.
-         - Eliminación de paréntesis y su contenido.
-         - Conservación de letras, números, espacios y apostrofes.
-         - Eliminación de espacios extra.
-      2. Procesamiento NLP con spaCy:
-         - Tokenización y lematización.
-         - Eliminación opcional de stopwords.
-    
-    Args:
-        texto (str): Texto a normalizar.
-        remove_stopwords (bool): Si True, elimina las stopwords.
-    
-    Returns:
-        str: Texto normalizado.
-    """
-    if not texto or not isinstance(texto, str):
-        return ""
-    
-    # Etapa 1: Limpieza básica
+# --- 1) Tus funciones de limpieza y lematización (igual que antes) ---
+def limpieza_basica(texto: str) -> str:
     texto = texto.lower()
-    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8', 'ignore')
-    texto = texto.replace('-', ' ')
-    texto = re.sub(r'\([^)]*\)', '', texto)
-    texto = re.sub(r"[^a-z0-9'\s]", '', texto)
-    texto = re.sub(r'\s+', ' ', texto).strip()
-    
-    # Etapa 2: Procesamiento NLP (tokenización y lematización)
+    texto = unicodedata.normalize('NFKD', texto) \
+                        .encode('ascii','ignore') \
+                        .decode('utf-8','ignore')
+    texto = texto.replace('(', '').replace(')', '')
+    #texto = texto.replace('-', ' ')
+    texto = re.sub(r"[^a-z0-9'\s\-/]", '', texto)
+    return re.sub(r'\s+', ' ', texto).strip()
+# Lista de sustantivos que NO se lematizan, se dejan tal cual
+EXCEPTION_NOUNS = {
+    "data",
+    "children",
+    "media",
+    "criteria",
+    # añade aquí más si lo necesitas, p.ej.:
+    # "species", "phenomena", "physics", …
+}
+
+def normalizar_texto_spacy(texto: str, remove_stopwords: bool = False) -> str:
+    texto = limpieza_basica(texto)
     doc = nlp(texto)
-    tokens_normalizados = []
+    out = []
     for token in doc:
         if remove_stopwords and token.is_stop:
             continue
-        if not token.is_punct and not token.is_space:
-            tokens_normalizados.append(token.lemma_)
-    return ' '.join(tokens_normalizados)
+        if token.is_punct or token.is_space:
+            continue
 
-def normalizar_keywords_columna(celda, remove_stopwords=False):
-    """
-    Procesa una celda que contiene keywords separadas por ";".
-    
-    Args:
-        celda (str): Cadena de keywords separadas por ";"
-        remove_stopwords (bool): Si True, elimina stopwords.
-        
-    Returns:
-        str: Cadena con cada keyword normalizada y reensamblada con ";"
-    """
-    if not celda or not isinstance(celda, str):
+        orig = token.text
+        lema = token.lemma_
+
+        if token.tag_ == "VBG":
+            # gerundios se mantienen
+            out.append(orig)
+        elif token.pos_ == "NOUN" and orig.lower() in EXCEPTION_NOUNS:
+            # excepciones de noun: no lematizar
+            out.append(orig)
+        else:
+            # resto de casos: usar el lema (singulariza plurales)
+            out.append(lema)
+
+    return " ".join(out)
+
+def normalizar_keywords_columna(celda: str) -> str:
+    if not isinstance(celda, str): 
         return ""
-    
-    # Separar la celda en términos usando ";" como delimitador
-    tokens = [token.strip() for token in celda.split(";") if token.strip()]
-    # Normalizar cada término individualmente
-    tokens_normalizados = [normalizar_texto_spacy(token, remove_stopwords) for token in tokens]
-    # Unir de nuevo usando "; " como separador
-    return "; ".join(tokens_normalizados)
+    terms = [t.strip() for t in celda.split(';') if t.strip()]
+    return "; ".join(normalizar_texto_spacy(t) for t in terms)
 
-# 3. Cargar el archivo CSV
-#ruta_csv = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
-ruta_csv = "G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
-df = pd.read_csv(ruta_csv)
-# Guardar copia “before”
+# --- 2) Función de score combinado de RapidFuzz ---
+
+# --- 3) Carga y preprocesa tu CSV ---
+
+#ruta = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
+
+ruta= r"G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
+
+df = pd.read_csv(ruta).fillna("")
+
+
+# --- 2) Definir los scorers disponibles ---
+SCORERS = {
+    'ratio':       fuzz.ratio,
+    'partial':     fuzz.partial_ratio,
+    'token_sort':  fuzz.token_sort_ratio,
+    'token_set':   fuzz.token_set_ratio
+}
+
+# --- 3) Función de agrupamiento con bandera “method” ---
+def agrupar_rápido(
+    cell: str,
+    vocab: list,
+    thresh: int = 85,
+    method: str = 'token_set'
+) -> str:
+    """
+    - cell: keywords separadas por ';'
+    - vocab: lista global de términos canónicos (en minúsculas)
+    - thresh: umbral 0–100
+    - method: 'ratio' | 'partial' | 'token_sort' | 'token_set'
+    """
+    scorer = SCORERS.get(method, fuzz.token_set_ratio)
+    seen, out = set(), []
+    for term in [t.strip().lower() for t in cell.split(';') if t.strip()]:
+        # excluyo el término idéntico para no emparejar con sí mismo
+        choices = [v for v in vocab if v != term]
+        # extraigo top-2 para poder saltarme el idéntico
+        matches = process.extract(
+            query=term,
+            choices=choices,
+            scorer=scorer,
+            score_cutoff=thresh,
+
+            limit=None   
+        )
+        
+        # si hay segundo match y supera threshold, lo elijo
+     
+        if matches:
+                           # 3) Escoge el más largo (max len de cadena)
+            elegido = max(matches, key=lambda x: len(x[0]))[0]
+        else:
+            elegido = term   
+     
+        if elegido not in seen:
+            seen.add(elegido)
+            out.append(elegido)
+    # dedup interno preservando orden
+    return '; '.join(out)
+
 def contar_unicos(col, df_input):
     # Drop NA, split por “;”, strip y filtrar vacíos
     all_keywords = (
@@ -90,17 +134,78 @@ def contar_unicos(col, df_input):
 print("Antes de normalizar:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
-
-# 4. Aplicar la normalización a las columnas "Index Keywords" y "Author Keywords"
-df['Index Keywords'] = df['Index Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
-#df['bothKeywords'] = df['bothKeywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
-df['Author Keywords'] = df['Author Keywords'].apply(lambda x: normalizar_keywords_columna(x, remove_stopwords=False))
-# Conteo único después de normalizar
+# 4) Normaliza por separado Author y Index
+df['Author Keywords'] = df['Author Keywords'].apply(normalizar_keywords_columna)
+df['Index Keywords']  = df['Index Keywords'].apply(normalizar_keywords_columna)
 print("\nDespués de normalizar:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 
-# Opcional: Guardar el DataFrame procesado en un nuevo CSV
- 
-#df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
-df.to_csv("G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopuslematizar.csv", index=False)
+# 5) Unifica ambas en All Keywords
+
+# --- 5) Construye vocabulario global ---
+def construir_vocab(df, col):
+    return sorted({
+        kw.strip().lower()
+        for cell in df[col]
+        for kw in cell.split(';') if kw.strip()
+    })
+
+vocab_global = sorted(
+    set(construir_vocab(df,'Author Keywords') +
+        construir_vocab(df,'Index Keywords'))
+)
+
+# --- 6) Aplica el agrupamiento con diferentes métodos ---
+# Ratio puro
+
+
+# Token sort ratio
+df['Author Keywords'] = df['Author Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=85, method='token_sort'))
+df['Index Keywords'] = df['Index Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=85, method='token_sort'))
+print("\nDespués de token_sorto:")
+for col in ['Index Keywords', 'Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
+
+
+
+# Conteo único antes de normalizar
+
+# 7) Aplica fuzzy grouping a las tres columnas
+
+
+
+# 9) Guarda el resultado
+out = r"G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopuslematizafinaljhjesr.csv"
+
+df.to_csv(out, index=False)
+print("Resultado guardado en:", out)
+'''
+
+# Token set ratio (default recomendado)
+df['Author Keyword'] = df['Author Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=95, method='token_set'))
+df['Index Keywords'] = df['Index Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=95, method='token_set'))
+    
+print("\nDespués de Token set ratio:")
+
+for col in ['Index Keywords', 'Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
+df['AK_fuzzy_ratio'] = df['Author Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='ratio'))
+df['IK_fuzzy_ratio'] = df['Index Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='ratio'))
+
+# Partial ratio
+df['Author Keywords'] = df['Author Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=95, method='partial'))
+df['Author Keywords'] = df['Index Keywords'] \
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=95, method='partial'))
+print("\nDespués de ratio:")
+for col in ['Index Keywords', 'Author Keywords']:
+    print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
+
+'''

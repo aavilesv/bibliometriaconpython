@@ -264,7 +264,14 @@ try:
         text = re.sub(r'(?i)\bpeoples r china\b', 'China', text)
         text = re.sub(r'(?i)\brussian federation\b', 'Russia', text)
         text = re.sub(r'(?i)\bengland\b', 'United Kingdom', text)
+      
+        text = re.sub(r'(?i)\bScotland\b', 'United Kingdom', text)
+        text = re.sub(r'(?i)\bwales\b', 'United Kingdom', text)
+        text = re.sub(r'(?i)\bnorthern ireland\b', 'United Kingdom', text)
+   
+    
      
+        text = re.sub(r'(?i)\bSt Martin\b', 'United Kingdom', text)
         # Un solo patrón para Viet Nam (insensible a espacios)
         text = re.sub(r'(?i)\bviet\s?nam\b', 'Vietnam', text)
         # Ivory Coast
@@ -272,9 +279,33 @@ try:
         text = re.sub(r"(?i)\bCote d'Ivoire\b", "Ivory Coast", text)
         text = re.sub(r"(?i)\bCote Ivoire\b",   "Ivory Coast", text)        
         text = re.sub(r"(?i)\bDominican Rep\b", "Dominican Republic", text)
+        
+        
+        text = re.sub(r"(?i)\bTrinidad Tobago\b", "Trinidad and Tobago", text)
+        text = re.sub(r"(?i)\bTimor Leste\b", "Timor-Leste", text)
+        text = re.sub(r"(?i)\bSt Vincent\b", "Saint Vincent and the Grenadines", text)
+        text = re.sub(r"(?i)\bGermany (Democratic Republic, DDR)\b", "Germany", text)
+        text = re.sub(r"(?i)\bSao Tome & Prin\b", "Sao Tome and Principe", text)
+        text = re.sub(r"(?i)\bSt Lucia\b", "Saint Lucia", text)
+        
+        text = re.sub(r"(?i)\bSt Kitts & Nevi\b", "Saint Kitts and Nevis", text)
+        
+        text = re.sub(r"(?i)\bPapua N Guinea\b", "Papua New Guinea", text)
+        text = re.sub(r"(?i)\bGuinea Bissau\b", "Guinea-Bissau", text)
+        text = re.sub(r"(?i)\bCent Afr Republ\b", "Central African Republic", text)
+        
+        text = re.sub(r"(?i)\bCape Verde\b", "Cabo Verde", text)
+        text = re.sub(r"(?i)\bBrunei\b", "Brunei Darussalam", text)
+
+        text = re.sub(r"(?i)\bNigeria\b", "Niger", text)
+
         text = re.sub(r"(?i)\bDEM REP CONGO\b", "Congo", text)
         text = re.sub(r"(?i)\bDemocratic Republic of the Congo\b", "Congo", text)
+        text = re.sub(r"(?i)\bDominican Rep\b", "Dominican Republic", text)
         text = re.sub(r"(?i)\bTurkiye\b", "Turkey", text)
+        text = re.sub(r"(?i)\bSt Martin\b", "Saint Martin", text)
+        text = re.sub(r"(?i)\bSaint Martin\b", "Saint Martin", text)
+        
         
         
         
