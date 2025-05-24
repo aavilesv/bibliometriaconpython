@@ -1,5 +1,5 @@
 import pandas as pd
-import re
+import re,ast
 from rapidfuzz import fuzz, process
 
 # 1) Leer CSV
@@ -177,7 +177,7 @@ def combine_affils_with_removed(a_str: str,
       · combined_str  – afiliaciones deduplicadas 'Inst, País; ...'
       · removed_list  – lista de fragmentos descartados
     """
-    removed = []          # aquí guardaremos lo eliminado
+    removed = list()          # aquí guardaremos lo eliminado
 
     def preprocess(source):
         frags = []
@@ -234,17 +234,149 @@ df[['Combined_affiliations', 'Removed_affiliations']] = df.apply(
             row['Affiliations'],
             row['Authors with affiliations'],
             synonyms_map,
-            threshold=70
+            threshold=80
         )
     ),
     axis=1
 )
 
-#df['Affiliations']  = df['Combined_affiliations'] 
-#df['Authors with affiliations']  = df['Combined_affiliations'] 
+MANUAL_COUNTRY = {
+    "university of georgia" : "United States",
 
-# Opción 1: Usar drop()
-#df = df.drop('Combined_affiliations', axis=1)  # axis=1 para columnas
+    # … añade los que necesites
+}
+MANUAL_COUNTRY = {k.lower(): v for k, v in MANUAL_COUNTRY.items()}
+
+# patrón con todos los países
+COUNTRY_PAT = re.compile(r'\b(' + '|'.join(map(re.escape, countries)) + r')\b',
+                         re.IGNORECASE)
+
+
+def normalize_country(seg: str) -> str | None:
+    """Devuelve 'Inst, País' o None si no se puede asignar país."""
+    seg = expand_abbrev(seg.strip().strip("'\""))
+    if not seg:
+        return None
+
+    # a)  BUSCAR en el diccionario manual
+    for key, ctry in MANUAL_COUNTRY.items():
+        if key in seg.lower():
+            return f"{seg}, {ctry}"
+
+    # b)  ¿Ya termina en ', País'?
+    inst, _, tail = seg.rpartition(',')
+    if tail.strip().lower() in synonyms_map:
+        return f"{inst.strip()}, {synonyms_map[tail.strip().lower()]}"
+
+    # c)  Buscar el nombre del país dentro del texto
+    m = COUNTRY_PAT.search(seg)
+    if m:
+        country = synonyms_map[m.group(1).lower()]
+        return f"{seg}, {country}"
+
+    # d)  No se pudo determinar
+    return None
+def clean_removed_cell(cell: str, threshold: int = 70) -> str:
+    """
+    Converte la celda '[... ]' en texto plano deduplicado 'Inst, País; …'
+    """
+    if not cell or cell == "[]":
+        return ""
+    try:
+        items = ast.literal_eval(cell) if cell.startswith('[') else [cell]
+    except Exception:
+        items = [cell]
+
+    # 1) normalizar y descartar los que sigan sin país
+    tuples = []
+    for itm in items:
+        norm = normalize_country(itm)
+        if norm:
+            inst, _ , country = norm.rpartition(',')
+            tuples.append((inst.strip(), country.strip()))
+
+    # 2) deduplicar (token_set_ratio)
+    uniques = []
+    for inst, ctry in tuples:
+        if not uniques:
+            uniques.append((inst, ctry)); continue
+        cand = [u[0] for u in uniques]
+        best = process.extractOne(inst, cand, scorer=fuzz.token_set_ratio)
+        if best and best[1] >= threshold:
+            idx = best[2]
+            longer = inst if len(inst) > len(cand[idx]) else cand[idx]
+            uniques[idx] = (longer, ctry)
+        else:
+            uniques.append((inst, ctry))
+
+    return '; '.join(f"{i}, {c}" for i, c in uniques)
+df['Removed_affiliations_clean'] = (
+    df['Removed_affiliations']
+      .astype(str)                 # por si vienen listas como string
+      .apply(clean_removed_cell)
+)
+
+def merge_affil_cols(combined: str, removed: str) -> str:
+    """
+    Une 'Combined_affiliations' y 'Removed_affiliations_clean'
+    sin repetir 'Inst, País'.
+    """
+    items = []
+    seen  = set()
+
+    # 1) añadir los del combined (ya deduplicados)
+    for seg in [s.strip() for s in combined.split(';') if s.strip()]:
+        if seg not in seen:
+            items.append(seg)
+            seen.add(seg)
+
+    # 2) añadir los del removed (ya limpios)
+    for seg in [s.strip() for s in removed.split(';') if s.strip()]:
+        if seg not in seen:
+            items.append(seg)
+            seen.add(seg)
+
+    return '; '.join(items)
+
+# Crear la nueva columna
+df['All_affiliations'] = df.apply(
+    lambda row: merge_affil_cols(
+        row['Combined_affiliations'],
+        row['Removed_affiliations_clean']
+    ),
+    axis=1
+)
+
+
+MANUAL_REPLACE = {
+    # ——— Estados Unidos ———
+    "university system of georgia"          : "university of georgia",
+    "georgia state university"                           : "university of georgia",
+    # ——— Añade los que vayas detectando ———
+}
+# Compilar regex con todas las claves (ignora mayúsculas/minúsculas)
+pattern = re.compile('|'.join(map(re.escape, MANUAL_REPLACE.keys())), re.IGNORECASE)
+
+def replace_manual(cell: str) -> str:
+    """
+    Sustituye cada variante por su forma canónica, respetando el orden original.
+    """
+    def repl(match):
+        original = match.group(0)
+        return MANUAL_REPLACE.get(original.lower(), original)   # por si cambia gist
+    return pattern.sub(repl, cell)
+
+# Aplicar sobre la columna ya limpia (All_affiliations o la que quieras)
+df['All_affiliations_norm'] = df['All_affiliations'].apply(replace_manual)
+df['Affiliations']  = df['All_affiliations_norm'] 
+df['Authors with affiliations']  = df['All_affiliations_norm'] 
+#  drop() eliminar
+df = df.drop('Combined_affiliations', axis=1)  # axis=1 para columnas
+df = df.drop('Removed_affiliations', axis=1)  # axis=1 para columnas
+df = df.drop('Removed_affiliations_clean', axis=1)  # axis=1 para columnas
+df = df.drop('All_affiliations', axis=1)  # axis=1 para columnas
+df = df.drop('All_affiliations_norm', axis=1)  # axis=1 para columnas
+
 
 # 9) Guarda el resultado
 out = r"G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopusfinal.csv"
