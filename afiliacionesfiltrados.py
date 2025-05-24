@@ -240,6 +240,7 @@ df[['Combined_affiliations', 'Removed_affiliations']] = df.apply(
     axis=1
 )
 
+## revisar que organzaciones están en el países
 MANUAL_COUNTRY = {
     "university of georgia" : "United States",
 
