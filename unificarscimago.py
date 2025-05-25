@@ -1,59 +1,117 @@
 import pandas as pd
-import os
+from rapidfuzz import process, fuzz
+
 import re
+##  usar por favor esto para poder validar todo from rapidfuzz import fuzz, process
+# Rutas de los archivos SCImago y Scopus
+scimago_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
+scopus_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\datafinal.csv"
 
-# Ruta de la carpeta que contiene los archivos
-folder_path = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data"
+# Cargar ambos archivos CSV con separador ";"
+scimago_data = pd.read_csv(scimago_path, sep=";")
+datasetw_s = pd.read_csv(scopus_path)
 
-# Lista de archivos
-files = [
-    "datascimago2013.csv",
-    "datascimago2014.csv",
-    "datascimago2015.csv",
-    "datascimago2016.csv",
-    "datascimago2017.csv",
-    "datascimago2018.csv",
-    "datascimago2019.csv",
-    "datascimago2020.csv",
-    "datascimago2021.csv",
-    "datascimago2022.csv",
-    "datascimago2023.csv",
-    "datascimago2024.csv"
-]
+# Normalizar ISSN en SCImago para manejar múltiples valores
+scimago_expanded = scimago_data.assign(Issn=scimago_data['Issn'].str.split(',')).explode('Issn')
+scimago_expanded['Issn'] = scimago_expanded['Issn'].str.strip()  # Eliminar espacios adicionales en ISSN
+# Guardar el total de registros originales de Scopus
+total_scopus_records = len(datasetw_s)
+# Realizar la unión basada en ISSN y Year, copiando todas las columnas de SCImago en Scopus
 
-# Columnas que queremos conservar (asegúrate de incluir 'Year')
-columns_to_keep = [
-    "Issn", "SJR Best Quartile", "H index", "Country", "Region", "SJR", 
-    "Publisher", "Coverage", "Categories", "Areas", "Year"
-]
 
-dataframes = []
 
-for file in files:
-    # Cargar el CSV
-    file_path = os.path.join(folder_path, file)
-    df = pd.read_csv(file_path, sep=";")
+def merge_with_scimago(main_df: pd.DataFrame,
+                       scimago_expanded: pd.DataFrame,
+                       threshold: int = 90) -> pd.DataFrame:
 
-    # Extraer el año del nombre de archivo (cuatro dígitos)
-    match = re.search(r'(\d{4})', file)
-    if match:
-        year = int(match.group(1))
-    else:
-        raise ValueError(f"No se pudo extraer el año de '{file}'")
 
-    # Añadir la columna Year
-    df['Year'] = year
+       
+ # 3) Agrupar para un registro único por (Issn_clean, Year)
+    scimago_unique = (
+        scimago_expanded
+        .dropna(subset=['Issn', 'Year'])
+        .sort_values(['Issn', 'Year'])
+        .drop_duplicates(subset=['Issn', 'Year'], keep='first')
+        .copy()
+    )
+    # 3) Merge por ISSN limpio y Year
+    merged = main_df.merge(
+        scimago_unique ,
+        how='left',
+        left_on=['ISSN', 'Year'],
+        right_on=['Issn', 'Year'],
+        suffixes=('', '_sci')
+    )
 
-    # Seleccionar sólo las columnas que queremos
-    df = df[columns_to_keep]
+    # d) Limpiar paréntesis en Title_sci
+    merged['Title'] = (
+        merged.get('Title', pd.Series(dtype=str))
+              .str.replace(r'\([^)]*\)', '', regex=True)
+              .str.strip()
+    )
+    # e) Fuzzy match donde no hubo match exacto
+    catalog = merged['Title'].dropna().unique().tolist()
+    def fuzzy_fill(row):
+        if pd.notna(row['Title']):
+            return None
+        best, score, _ = process.extractOne(
+            row['Source title'],
+            catalog,
+            scorer=fuzz.token_sort_ratio
+        )
+        return best if score >= threshold else None
+    merged['Title'] = merged.apply(fuzzy_fill, axis=1)
 
-    dataframes.append(df)
 
-# Concatenar todo en un solo DataFrame
-merged_data = pd.concat(dataframes, ignore_index=True)
+    # f) Construir Title_final
+    merged['Source title'] = (
+        merged['Source title']
+        .str.replace(r'\([^)]*\)', '', regex=True)
+        .str.strip()
+    )
+    merged['Title'] = (
+        merged['Title']
+              .fillna(merged['Title'])
+              .fillna(merged['Source title'])
+    )
+  # g) Registrar diferencias
+    merged['Title'] = merged['Title'].where(
+        merged['Title'] != merged['Source title']
+    )
+   # h) Sobrescribir columnas en main_df
+    main_df['Source title'] = merged['Title'].values
+    
 
-# Guardar resultado
-output_path = os.path.join(folder_path, "scimago_unificado.csv")
+    return main_df
+merged_data = merge_with_scimago(datasetw_s, scimago_expanded)
+
+
+
+#merged_data = pd.merge(datasetw_s, scimago_expanded, how="left", left_on=["ISSN", "Year"], right_on=["Issn", "Year"])
+# Contar cuántos registros no encontraron coincidencia en SCImago
+unmatched_records = merged_data['ISSN'].isna().sum()
+
+# Contar cuántos registros se unieron exitosamente (es decir, con coincidencia en SCImago)
+matched_records = total_scopus_records - unmatched_records
+
+# Calcular el porcentaje de coincidencias
+match_percentage = (matched_records / total_scopus_records) * 100
+
+# Guardar el archivo resultante con la información combinada
+output_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\dataunificada.csv"
+print("Archivo combinado guardado en:", output_path)
 merged_data.to_csv(output_path, sep=";", index=False)
+# Filtrar solo los registros que encontraron coincidencia en SCImago
+matched_data = merged_data[~merged_data['ISSN'].isna()]
 
-print("Archivo unificado generado en:", output_path)
+# Guardar el archivo resultante con solo los registros coincidentes
+output_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\data_unificada_matched.csv"
+matched_data.to_csv(output_path, sep=";", index=False)
+print("Archivo combinado guardado en:", output_path)
+# Resumen descriptivo
+print("Resumen del proceso de unión de datos:")
+print(f"Total de registros en el archivo Scopus: {total_scopus_records}")
+print(f"Total de registros que encontraron coincidencia en SCImago: {matched_records}")
+print(f"Total de registros que no encontraron coincidencia en SCImago: {unmatched_records}")
+print(f"Porcentaje de coincidencias: {match_percentage:.2f}%")
+print(f"Archivo combinado guardado en: {output_path}")

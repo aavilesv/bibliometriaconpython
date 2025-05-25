@@ -55,10 +55,13 @@ try:
 
     # Cargar los datos
 
-    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Estefania Landires\\scopus.csv'
-    wos_file_path = 'G:\\Mi unidad\\2025\\Master Estefania Landires\\savedrecs.xls'
+    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datascopus.csv'
+    scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
+
+    wos_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\data740.xls'
 
     try:
+        scimagodata = pd.read_csv(scimago_ruta, sep=";")
         # Leer los datos del archivo CSV de Scopus
         scopus_df = pd.read_csv(scopus_file_path)
         
@@ -66,7 +69,7 @@ try:
         wos_df = pd.read_excel(wos_file_path)
         wos_df['Authors'] = wos_df['Authors'].str.replace(',', '')
         wos_df['Author(s) ID'] = wos_df['Authors']
-        wos_df['Source'] = 'Scopus'
+        wos_df['Source'] = 'Web of science'
         wos_df['Publication Stage'] = 'Final'
        
 
@@ -200,7 +203,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2004) & (combined_df['Year'] <= 2024)
+    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -218,34 +221,46 @@ try:
 
     # Aplicar la función a la columna 'Authors'
     combined_df['Authors'] = combined_df['Authors'].apply(process_authors)
+    #combined_df['Source title'] = combined_df['Source title'].str.replace(',', '')
+    # Normalizar ISSN en df_main
+    combined_df['ISSN'] = (
+        combined_df['ISSN']
+        .replace({'': pd.NA})
+        .str.replace(r'[^0-9X]', '', regex=True)
+        .str.upper()
+    )
+    # Normalizar ISSN en SCImago para manejar múltiples valores
+    scimago_expanded = scimagodata.assign(Issn=scimagodata['Issn'].str.split(',')).explode('Issn')
+    scimago_expanded['Issn'] = scimago_expanded['Issn'].str.strip()  # Eliminar espacios adicionales en ISSN
+        # Mapa ISSN → Título canónico (el primero encontrado)
+    scimago_map = scimago_expanded.groupby('Issn')['Title'].first().to_dict()
+
     
     # Lista global para almacenar títulos únicos de revistas
-    unique_titles = []
-    def process_source_title(title, threshold=90):
-        """
-        Procesa y normaliza el título de la revista de forma dinámica.
-        """
-        global unique_titles
-        if not isinstance(title, str):
-            return ""
-        # Limpieza básica del título
-        title = title.lower()
-        title = re.sub(r'\([^)]*\)', '', title)  # Eliminar texto entre paréntesis
-        title = title.replace('-', ' ')            # Reemplazar guiones por espacios
-        #title = re.sub(r'\s+', ' ', title).strip()  # Eliminar espacios redundantes
-        title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode('utf-8', 'ignore')
-        # Capitalizar cada palabra (formato título)
-        if not title.isupper():
-            title = " ".join([word.capitalize() for word in title.split()])
-        # Fuzzy Matching para unificar títulos similares
-        if unique_titles:
-            best_match, score, _ = process.extractOne(title, unique_titles, scorer=fuzz.token_sort_ratio)
-            if score > threshold:
-                return best_match
-        unique_titles.append(title)
-        return title
+    # Función de asignación priorizando Scopus y luego fuzzy match
+    def assign_canonical_title(row):
+        issn = row['ISSN']
+        src = row['Source']
+        orig = row['Source title']
+       # 0) Eliminar todo lo que esté entre paréntesis (incluidos paréntesis)
+       
+        # Si existe ISSN en mapa y proviene de WoS, tomar título de SCImago (que viene de Scopus)
+        if pd.notna(issn) and issn in scimago_map and src.lower() != 'scopus':
+            return re.sub(r'\([^)]*\)', '', scimago_map[issn]).strip()
+
+        # Si no hay ISSN, fuzzy match contra catálogo de títulos canónicos
+        if pd.isna(issn) and src.lower() != 'scopus':
+            best, score, _ = process.extractOne(orig, list(scimago_map.values()), scorer=fuzz.token_sort_ratio)
+            if score > 90:
+                return re.sub(r'\([^)]*\)', '', best).strip()
+
+        # En otros casos, conservar el original
+        return re.sub(r'\([^)]*\)', '', orig).strip()
+
         
-    combined_df['Source title'] = combined_df['Source title'].apply(process_source_title)
+    
+    combined_df['Source title'] = combined_df.apply(assign_canonical_title, axis=1)
+    
     
     # Validar y rellenar valores nulos entre columnas de afiliaciones
     def fill_missing_values(row):
