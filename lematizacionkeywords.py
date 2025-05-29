@@ -22,6 +22,49 @@ EXCEPTION_NOUNS = {
     "children",
     "media",
     "criteria",
+    "covid-19",
+   "smes",
+   # Términos compuestos relacionados con tu tema
+   "absorptive capacity",
+   "realized absorptive capacity",
+   "tacit knowledge transfer",
+   "transfer of knowledge",
+   "organisational trust",
+   "organizational framework",
+   "organizational objectives",
+   "organizational practices",
+   "organizational resilience",
+   "organizational structure",
+   "organizational transformation",
+    "sectoral innovation system",
+ "shared knowledge",
+ "shared knowledge network",
+ "shared leadership",
+ "sharing platforms",
+ "self-knowledge distillation",
+ "stakeholder analysis",
+ "stakeholder management",
+ "stakeholder theory",
+ "servant leadership",
+ "absorptive capacity",
+    "realized absorptive capacity",
+    "tacit knowledge transfer",
+    "transfer of knowledge",
+    "organisational trust",
+    "organizational framework",
+    "organizational objectives",
+    "organizational practices",
+    "organizational resilience",
+    "organizational structure",
+    "organizational transformation",
+    # Nuevas excepciones de tu listado
+    "cooperative inquiry",
+    "coopetition",
+    "coordination process",
+    "critical success factor",
+    "critical success factors",
+    "crisis resilience",
+    "crisis response",
     # añade aquí más si lo necesitas, p.ej.:
     # "species", "phenomena", "physics", …
 }
@@ -55,7 +98,7 @@ def normalizar_keywords_columna(celda: str) -> str:
     if not isinstance(celda, str): 
         return ""
     terms = [t.strip() for t in celda.split(';') if t.strip()]
-    return "; ".join(normalizar_texto_spacy(t) for t in terms)
+    return ";".join(normalizar_texto_spacy(t) for t in terms)
 
 # --- 2) Función de score combinado de RapidFuzz ---
 
@@ -63,7 +106,8 @@ def normalizar_keywords_columna(celda: str) -> str:
 
 #ruta = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
 
-ruta= r"G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datawos_scopus.csv"
+ruta= r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+
 
 df = pd.read_csv(ruta).fillna("")
 
@@ -73,7 +117,9 @@ SCORERS = {
     'ratio':       fuzz.ratio,
     'partial':     fuzz.partial_ratio,
     'token_sort':  fuzz.token_sort_ratio,
-    'token_set':   fuzz.token_set_ratio
+    'token_set':   fuzz.token_set_ratio,
+    'WRatio':   fuzz.WRatio
+    
 }
 
 # --- 3) Función de agrupamiento con bandera “method” ---
@@ -108,7 +154,7 @@ def agrupar_rápido(
      
         if matches:
                            # 3) Escoge el más largo (max len de cadena)
-            elegido = max(matches, key=lambda x: len(x[0]))[0]
+            elegido = min(matches, key=lambda x: len(x[0]))[0]
         else:
             elegido = term   
      
@@ -116,7 +162,7 @@ def agrupar_rápido(
             seen.add(elegido)
             out.append(elegido)
     # dedup interno preservando orden
-    return '; '.join(out)
+    return ';'.join(out)
 
 def contar_unicos(col, df_input):
     # Drop NA, split por “;”, strip y filtrar vacíos
@@ -137,7 +183,7 @@ for col in ['Index Keywords', 'Author Keywords']:
 # 4) Normaliza por separado Author y Index
 df['Author Keywords'] = df['Author Keywords'].apply(normalizar_keywords_columna)
 df['Index Keywords']  = df['Index Keywords'].apply(normalizar_keywords_columna)
-print("\nDespués de normalizar:")
+print("\nDespués de normalizar y lematizacion:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 
@@ -162,10 +208,10 @@ vocab_global = sorted(
 
 # Token sort ratio
 df['Author Keywords'] = df['Author Keywords'] \
-    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='token_sort'))
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=98, method='WRatio'))
 df['Index Keywords'] = df['Index Keywords'] \
-    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=90, method='token_sort'))
-print("\nDespués de token_sorto:")
+    .apply(lambda c: agrupar_rápido(c, vocab_global, thresh=98, method='WRatio'))
+print("\nDespués de WRatio:")
 for col in ['Index Keywords', 'Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 
@@ -178,7 +224,7 @@ for col in ['Index Keywords', 'Author Keywords']:
 
 
 # 9) Guarda el resultado
-out = r"G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopuslematizafinaljhjesr.csv"
+out = r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopuslematizafinal.csv"
 
 df.to_csv(out, index=False)
 print("Resultado guardado en:", out)

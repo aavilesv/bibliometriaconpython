@@ -4,7 +4,7 @@
 import pandas as pd
 import spacy
 import re
-
+import numpy as np
 import unicodedata
 import matplotlib.pyplot as plt
 from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
@@ -55,10 +55,10 @@ try:
 
     # Cargar los datos
 
-    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datascopus.csv'
+    scopus_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datascopus.csv'
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\data740.xls'
+    wos_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -68,9 +68,11 @@ try:
         # Leer los datos del archivo Excel de Web of Science
         wos_df = pd.read_excel(wos_file_path)
         wos_df['Authors'] = wos_df['Authors'].str.replace(',', '')
+        
         wos_df['Author(s) ID'] = wos_df['Authors']
         wos_df['Source'] = 'Web of science'
         wos_df['Publication Stage'] = 'Final'
+        wos_df['Source Title'] = wos_df['Source Title'].str.replace('&', 'and', regex=False)
        
 
     except Exception as e:
@@ -137,7 +139,7 @@ try:
         best_match, score, _ = process.extractOne(
             wos_title,
             scopus_titles_list,
-            scorer=fuzz.token_sort_ratio
+            scorer=fuzz.WRatio
         )
         
         if score > threshold_fuzzy:
@@ -150,7 +152,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -404,35 +406,138 @@ try:
     print(f"        Scopus: {final_scopus_count} ({final_scopus_percentage:.1f}%)\n")
     
     # Generar gráfico de barras horizontal con la distribución final
-    sources = ['WoS', 'Scopus']
-    final_percentages = [final_wos_percentage, final_scopus_percentage]
+# Tus datos reales:
+    sources     = ['WoS', 'Scopus']
+    kept        = [final_wos_count, final_scopus_count]
+    removed     = [removed_wos, removed_scopus]
+    totals      = np.array(kept) + np.array(removed)
+    pct_kept    = np.array(kept) / totals * 100
+    pct_removed = np.array(removed) / totals * 100
+    
     fig, ax = plt.subplots(figsize=(8, 4))
-    bars = ax.barh(sources, final_percentages)
-    for bar in bars:
-        width = bar.get_width()
-        ax.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width:.1f}%', va='center')
-    ax.set_xlabel("Percentage (%)")
-    ax.set_title("Distribución de artículos únicos por fuente")
+    
+    bars_kept    = ax.barh(sources, kept,    label='Kept')
+    bars_removed = ax.barh(sources, removed, left=kept, label='Removed')
+    
+    for i, (b1, b2) in enumerate(zip(bars_kept, bars_removed)):
+        w1 = b1.get_width()
+        # elegir color en función del ancho
+        c1 = 'white' if w1 > totals[i]*0.15 else 'black'
+        ax.text(w1/2, b1.get_y()+b1.get_height()/2,
+                f'{kept[i]}\n({pct_kept[i]:.1f}%)',
+                va='center', ha='center', color=c1)   # weight default (= normal)
+    
+        w2 = b2.get_width()
+        if w2 > 0:
+            c2 = 'white' if w2 > totals[i]*0.15 else 'black'
+            ax.text(kept[i] + w2/2, b2.get_y()+b2.get_height()/2,
+                    f'{removed[i]}\n({pct_removed[i]:.1f}%)',
+                    va='center', ha='center', color=c2)  # weight normal
+    
+    ax.set_title("Post-deduplication Distribution of Bibliometric Records\nfrom Scopus and Web of Science",
+                 weight='bold', pad=12)
+    
+    # Ejes y leyenda en peso normal (por defecto)
+    ax.set_xlabel("Number of Articles")
+    ax.legend(loc='lower right')
+    
+    ax.grid(axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.show()
-
     for col in ["Volume", "Page count", "PubMed ID"]:
         combined_df[col] = pd.to_numeric(combined_df[col], errors='coerce') \
                         .astype("Int64")
 
     # 2. Eliminar la columna 'processed_title'
     combined_df.drop(columns="processed_title", inplace=True)
+    print("**Resultados finales:**")
+    print(f"Total de artículos únicos combinados: {final_total}")
 
 
+    # ——————————————————————————————————————————————————
+    # Asegúrate de que las columnas de año estén en numérico/int
+    # ——————————————————————————————————————————————————
+    scopus_df['Year'] = pd.to_numeric(scopus_df['Year'], errors='coerce')
+    wos_df['Year']    = pd.to_numeric(wos_df['Publication Year'], errors='coerce')
 
+    # ——————————————————————————————————————————————————
+    # Filtrar rangos de interés (2014–2024)
+    # ——————————————————————————————————————————————————
+    mask_sc = scopus_df['Year'].between(2014, 2024)
+    mask_wo = wos_df['Year'].between(2014, 2024)
 
+    # ——————————————————————————————————————————————————
+    # Conteo de artículos por año
+    # ——————————————————————————————————————————————————
+    raw_scopus_yearly = scopus_df.loc[mask_sc].groupby('Year').size()
+    raw_wos_yearly    = wos_df.loc[mask_wo].groupby('Year').size()
+
+    # ——————————————————————————————————————————————————
+    # Suma de citas por año
+    # ——————————————————————————————————————————————————
+    raw_scopus_cites = scopus_df.loc[mask_sc].groupby('Year')['Cited by'].sum()
+    raw_wos_cites    = wos_df.loc[mask_wo].groupby('Year')['Cited Reference Count'].sum()
+
+    # ——————————————————————————————————————————————————
+    # Unir en DataFrames
+    # ——————————————————————————————————————————————————
+    raw_counts = pd.DataFrame({
+        'WoS':    raw_wos_yearly,
+        'Scopus': raw_scopus_yearly
+    }).fillna(0).astype(int)
+    raw_counts['Total Articles Raw'] = raw_counts.sum(axis=1)
+
+    raw_citations = pd.DataFrame({
+        'WoS Citations':    raw_wos_cites,
+        'Scopus Citations': raw_scopus_cites
+    }).fillna(0).astype(int)
+    raw_citations['Total Citations Raw'] = raw_citations.sum(axis=1)
+
+    # ——————————————————————————————————————————————————
+    # Imprimir tablas por consola
+    # ——————————————————————————————————————————————————
+    print("=== Raw Article Counts by Year ===")
+    print(raw_counts)
+    print("\n=== Raw Citation Counts by Year ===")
+    print(raw_citations)
+
+    # ——————————————————————————————————————————————————
+    # Gráfico 1: evolución de artículos crudos
+    # ——————————————————————————————————————————————————
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(raw_counts.index, raw_counts['WoS'],              marker='o', label='WoS Articles')
+    ax.plot(raw_counts.index, raw_counts['Scopus'],           marker='s', label='Scopus Articles')
+    ax.plot(raw_counts.index, raw_counts['Total Articles Raw'], marker='^', label='Total Articles')
+    ax.set_title("Annual evolution of articles (RAW data before deduplication)",
+                weight='bold', pad=12)
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Number of articles")
+    ax.legend(loc='upper left')
+    ax.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+
+    # ——————————————————————————————————————————————————
+    # Gráfico 2: evolución de citas crudas
+    # ——————————————————————————————————————————————————
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(raw_citations.index, raw_citations['WoS Citations'],       marker='o', label='WoS Citations')
+    ax.plot(raw_citations.index, raw_citations['Scopus Citations'],    marker='s', label='Scopus Citations')
+    ax.plot(raw_citations.index, raw_citations['Total Citations Raw'], marker='^', label='Total Citations')
+    ax.set_title("Annual evolution of citations (RAW data before deduplication)",
+                weight='bold', pad=12)
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Number of citations")
+    ax.legend(loc='upper left')
+    ax.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
-        print("**Resultados finales:**")
-        print(f"Total de artículos únicos combinados: {final_total}")
+       
         print("Los datos combinados han sido guardados en 'wos_scopuslibrería.csv'.")
     except Exception as e:
         print(f"Error al guardar el archivo CSV combinado: {e}")

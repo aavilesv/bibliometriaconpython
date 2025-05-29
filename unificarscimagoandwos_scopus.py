@@ -4,7 +4,9 @@ import re
 ##  usar por favor esto para poder validar todo from rapidfuzz import fuzz, process
 # Rutas de los archivos SCImago y Scopus
 scimago_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
-wos_scopus_path =  "G:\\Mi unidad\\2025\\Master Estefania Landires\\datawos_scopus.csv"
+wos_scopus_path =  "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+
+
 
 # Cargar ambos archivos CSV con separador ";"
 scimago_data = pd.read_csv(scimago_path, sep=";")
@@ -46,25 +48,24 @@ sin_issn = by_issn[by_issn['Issn'].isna()].drop(
     errors='ignore'
 )
 # 1) Prepara la lista de títulos únicos en SCImago
+
 scimago_titles = scimago_expanded['Source title'].unique().tolist()
 
-# 2) Función que busca el mejor match y devuelve título + score
-def best_match(title, threshold=80):
-    match, score, idx = process.extractOne(
-        query=title,
-        choices=scimago_titles,
-        scorer=fuzz.partial_ratio
-    ) or (None, 0, None)
-    if score >= threshold:
-        return match
+
+
+def best_match(title, threshold=90):
+    title = title.strip().lower()
+    result = process.extractOne(query=title, choices=scimago_titles, scorer=fuzz.WRatio)
+    if result:
+        match, score, _idx = result
+        if score >= threshold:
+            return match
     return None
 
 # 3) Aplica el matching difuso a cada registro sin ISSN
-sin_issn['matched_title'] = sin_issn['Source title']\
-    .apply(lambda t: best_match(t, threshold=80))
-
+sin_issn['Source title'] = sin_issn['Source title'].apply(lambda t: best_match(t, threshold=90))
 # 4) Filtra sólo los que encontraron un match aceptable
-to_merge = sin_issn.dropna(subset=['matched_title'])
+to_merge = sin_issn.dropna(subset=['Source title'])
 
 
 # 3) Merge por título solo para los sin ISSN
@@ -72,7 +73,9 @@ by_title = pd.merge(
     to_merge,
     scimago_expanded,
     how="left",
-    on=["Source title", "Year"],
+    
+    left_on=["Source title", "Year"],
+    right_on=["Source title", "Year"],
     suffixes=("", "_scimago")
 )
 
@@ -93,9 +96,10 @@ print(f"Total matched Scimago:    {matched_count}")
 print(f"Total unmatched Scimago:  {unmatched_count}")
 print(f"% coincidencias:          {pct_match:.2f}%")
 
-output_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\dataunificada.csv"
-print("Archivo combinado guardado en:", output_path)
-matched.to_csv(output_path, sep=";", index=False)
+#output_path =  "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_scimago.csv"
+
+#print("Archivo combinado guardado en:", output_path)
+#matched.to_csv(output_path, sep=";", index=False)
 
 # 2) Construir el DataFrame “total”:
 unmatched = wos_scopus.loc[~wos_scopus.index.isin(matched.index)]
@@ -120,9 +124,9 @@ columns_to_drop = [
     'Categories',
     'Areas',
 ]
-all_with_info = all_with_info.drop(columns=columns_to_drop)
+#all_with_info = all_with_info.drop(columns=columns_to_drop)
 # 3) Guardar el total
-all_with_info.to_csv("G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\dataunificada_total.csv", sep=";", index=False)
+all_with_info.to_csv("G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_scimago.csv", sep=";", index=False)
 
 
 
