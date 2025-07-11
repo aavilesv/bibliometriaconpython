@@ -23,50 +23,7 @@ EXCEPTION_NOUNS = {
     "media",
     "criteria",
     "covid-19",
-   "smes",
-   # Términos compuestos relacionados con tu tema
-   "absorptive capacity",
-   "realized absorptive capacity",
-   "tacit knowledge transfer",
-   "transfer of knowledge",
-   "organisational trust",
-   "organizational framework",
-   "organizational objectives",
-   "organizational practices",
-   "organizational resilience",
-   "organizational structure",
-   "organizational transformation",
-    "sectoral innovation system",
- "shared knowledge",
- "shared knowledge network",
- "shared leadership",
- "sharing platforms",
- "self-knowledge distillation",
- "stakeholder analysis",
- "stakeholder management",
- "stakeholder theory",
- "servant leadership",
- "absorptive capacity",
-    "realized absorptive capacity",
-    "tacit knowledge transfer",
-    "transfer of knowledge",
-    "organisational trust",
-    "organizational framework",
-    "organizational objectives",
-    "organizational practices",
-    "organizational resilience",
-    "organizational structure",
-    "organizational transformation",
-    # Nuevas excepciones de tu listado
-    "cooperative inquiry",
-    "coopetition",
-    "coordination process",
-    "critical success factor",
-    "critical success factors",
-    "crisis resilience",
-    "crisis response",
-    # añade aquí más si lo necesitas, p.ej.:
-    # "species", "phenomena", "physics", …
+    "e-learning",
 }
 
 def normalizar_texto_spacy(texto: str, remove_stopwords: bool = False) -> str:
@@ -105,8 +62,10 @@ def normalizar_keywords_columna(celda: str) -> str:
 # --- 3) Carga y preprocesa tu CSV ---
 
 #ruta = "G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
-
-ruta= r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+#r"G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\datawos_scopus.csv"
+ 
+ruta= r"G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\datawos_scopus.csv"
+ 
 
 
 df = pd.read_csv(ruta).fillna("")
@@ -224,7 +183,7 @@ for col in ['Index Keywords', 'Author Keywords']:
 
 
 # 9) Guarda el resultado
-out = r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopuslematizafinal.csv"
+out = r"G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\datawos_scopuslematizafinal.csv"
 
 df.to_csv(out, index=False)
 print("Resultado guardado en:", out)

@@ -2,8 +2,7 @@ import pandas as pd
 from collections import Counter
 import numpy as np
 # Cargar el archivo CSV
-ruta = r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopuslematizafinal.csv"
-       
+ruta =r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuseliminadas.csv"
 
 df = pd.read_csv(ruta)
 
@@ -71,7 +70,7 @@ for col in ['Author Keywords']:
     print(f"  {col}: {contar_unicos(col, df)} keywords únicas")
 # Guardar el DataFrame resultante en un nuevo archivo CSV
 
-ruta_guardado = "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\keywordsunidaswos_scopus.csv"
+ruta_guardado = r"G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\keywordsunidaswos_scopus.csv"
 df.to_csv(ruta_guardado, index=False)
 
 print("Archivo guardado con la columna 'Author Keywords' actualizada y sin repeticiones en:", ruta_guardado)

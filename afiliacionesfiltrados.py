@@ -3,7 +3,7 @@ import re,ast
 from rapidfuzz import fuzz, process
 
 # 1) Leer CSV
-ruta =r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+ruta =r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuseliminadas.csv"
 
 df = pd.read_csv(ruta).fillna("")
 
@@ -534,7 +534,7 @@ df = df.drop('All_affiliations_norm', axis=1)  # axis=1 para columnas
 
 
 # 9) Guarda el resultado
-out = r"G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopuafliacion.csv"
+out = r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuafliacion.csv"
 
 df.to_csv(out, index=False)
 print("Resultado guardado en:", out)

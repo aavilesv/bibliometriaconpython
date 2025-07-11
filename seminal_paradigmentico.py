@@ -2,10 +2,10 @@
 import pandas as pd, numpy as np
 import re
 #df = pd.read_csv("G:\\Mi unidad\\2025\\Master Almeida Monge Elka Jennifer\\data\\datascopus.csv")  
-RUTA = r"G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
+RUTA = r"G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos_scopus.csv"
 
-UMBRAL_CITAS = 15                # ⇦ cámbialo a 25, 30, 40… y se recalcula todo
-CUTOFF_YEAR = 2024            # edad al cierre de la búsqueda
+UMBRAL_CITAS = 0                # ⇦ cámbialo a 25, 30, 40… y se recalcula todo
+CUTOFF_YEAR = 2025            # edad al cierre de la búsqueda
 
 # -----------------------------------------------------------------------
 # 1) Carga y limpieza básica
@@ -33,9 +33,11 @@ df["FullText"] = df[text_cols].fillna("").agg(" ".join, axis=1)
 # ── 4. Heurística empírica estricta (≥2 señales) ─────────────────────
 pattern_method = (
    r"\b("
-    r"experiment|randomized|controlled trial|quasi[- ]?experimental|"
+    r"experiment|empirical|randomized|controlled trial|quasi[- ]?experimental|"
     r"pre[- ]?test|post[- ]?test|survey|questionnaire|interview|"
     r"mixed(\s*methods)?|quantitative|qualitative|"
+    r"sample size|n\s*=|n =\s*\d"  # Añadimos términos de datos numéricos
+
     r"case[- ]?study|regression|anova"
     r")\b"
 )
@@ -68,8 +70,8 @@ for thr in range(10, 45, 5):
     print(f"  > {thr:2d} citas  →  {n_par:4d} paradigmáticos")
 
 # 8) Guarda en Excel
-with pd.ExcelWriter("clasificacion_review.xlsx") as w:
+with pd.ExcelWriter("G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\clasificacion_review.xlsx") as w:
     df.to_excel(w, sheet_name="Todos", index=False)
     df[df["Clasificacion"]=="Paradigmático"].to_excel(w, sheet_name="Paradigmáticos", index=False)
     df[df["Clasificacion"]=="Seminal"].to_excel(w, sheet_name="Seminales", index=False)
-print("\nExcel generado: clasificacion_review.xlsx")
+print("\nExcel generado: clasificacion_review2.xlsx")

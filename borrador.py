@@ -1,48 +1,127 @@
-data_csv = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\"
+"""
+Descarga TODO el listado de revistas de Latindex (Directorio, Catálogo 2.0 o
+Descubridor de Artículos) y lo guarda en un Excel. Captura *todos* los pares
+«Etiqueta: valor» que aparezcan en cada ficha, de modo que si Latindex añade
+nuevos campos no hay que tocar el código.
 
+Requisitos:
+    pip install requests beautifulsoup4 pandas openpyxl
+    # (opcional) pip install lxml       -> parser más rápido
+"""
 
+import requests, time, math
+from bs4 import BeautifulSoup
 import pandas as pd
 
-# Ruta al archivo CSV
-data_csv = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\Implicaciones gerenciales y toma de decisiones.csv"
+BASE = "https://www.latindex.org/latindex"
 
-# Cargar datos desde CSV
-df = pd.read_csv(data_csv, dtype=str).fillna('')
+# ---------- CONFIGURAR AQUÍ -----------------------------------------------
+idModBus = 1                     # 0 = Directorio | 1 = Catálogo 2.0 | 3 = Artículos
+params = {                       # Filtros (dejar '' para no filtrar)
+    "pais": "",                 # p. ej. "Ecuador"
+    "tema": "",                 # p. ej. "Multidisciplinarias"
+    "search": ""                # texto libre
+}
+# --------------------------------------------------------------------------
 
-# Columnas de interés de Scopus
-columnas_busqueda = ['Title', 'Abstract', 'Author Keywords', 'Index Keywords']
+PARSER = "html.parser"           # o "lxml" si lo tienes instalado
+PAUSA  = 1                       # segundos entre páginas (cortesía)
 
-# Lista de términos a buscar (ya en minúsculas)	
-terminos = [
-      
-   
-     "managerial implications", "business value", "strategic decision making", 
-    "return on investment", "competitive advantage", "marketing strategy", 
-    "AI governance", "adoption barriers",
+headers = {"User-Agent": "Mozilla/5.0 (compatible; DataScraper/1.0)"}
 
-    "cost–benefit analysis", "organizational readiness", "change management", 
-    "C-level adoption", "KPI"
 
-    ]
-# Normalizar todo a minúsculas en las columnas de búsqueda
-df[columnas_busqueda] = df[columnas_busqueda].apply(lambda col: col.str.lower())
+def fetch_page(n):
+    """
+    Descarga la página *n* de resultados (1-based) y devuelve su HTML.
+    Solo incluye en la consulta los parámetros no vacíos, y siempre
+    añade idModBus y submit=Buscar.
+    """
+    q = {"idModBus": idModBus, "submit": "Buscar"}
+    # Añade solo filtros no vacíos
+    if params["pais"]:
+        q["pais"] = params["pais"]
+    if params["tema"]:
+        q["tema"] = params["tema"]
+    if params["search"]:
+        q["search"] = params["search"]
+    if n > 1:
+        q["page"] = n
 
-# Función que verifica si algún término aparece en el texto
-def contiene_termino(texto):
-    return any(term in texto for term in terminos)
+    r = requests.get(f"{BASE}/Solr/Busqueda", params=q, headers=headers, timeout=30)
+    r.raise_for_status()
+    return r.text
 
-# Crear máscara para filas que contienen al menos un término en cualquiera de las columnas
-mask = df[columnas_busqueda].applymap(contiene_termino).any(axis=1)
 
-# Filtrar el DataFrame según la máscara
-df_filtrado = df.loc[mask].copy()
+def parse_html(html):
+    """
+    Devuelve una lista de dicts con TODOS los pares «Etiqueta: valor» que
+    aparezcan en la página recibida.
+    """
+    soup  = BeautifulSoup(html, PARSER)
+    items = []
 
-# Mostrar cuántas filas cumplen el criterio
-print(f"Filas encontradas: {len(df_filtrado)}")
+    # Cada registro contiene un <strong>Título:</strong>
+    for tit in soup.find_all("strong", string=lambda s: s.strip().startswith("Título:")):
+        # Subir al div contenedor del registro
+        div = tit
+        while div and div.name != "div":
+            div = div.parent
 
-# Guardar en Excel
+        datos = {}
+        # Recorre todas las <strong> dentro de ese div
+        for lab in div.find_all("strong"):
+            etiqueta = lab.get_text(strip=True).rstrip(":")
+            nxt = lab.next_sibling
+            # Saltar nodos vacíos
+            while nxt and (isinstance(nxt, str) and not nxt.strip()):
+                nxt = nxt.next_sibling
 
-data_salida = r"G:\\Mi unidad\2025\\Master Karla Villavicencio\\taylor correciones\\Implicaciones gerenciales y toma de decisionesresultados_scopus_filtrados.xlsx"
-with pd.ExcelWriter(data_salida, engine='openpyxl') as writer:
-    df_filtrado.to_excel(writer, index=False, sheet_name='Filtrados')
-print(f"Archivo guardado en: {data_salida}")
+            if nxt is None:
+                valor = None
+            elif isinstance(nxt, str):
+                valor = nxt.strip()
+            else:
+                valor = nxt.get_text(" ", strip=True)
+
+            # Concatena si la misma etiqueta se repite
+            datos[etiqueta] = f"{datos.get(etiqueta,'')} | {valor}".strip(" |")
+
+        items.append(datos)
+
+    return items
+
+
+# --------------------- DESCARGA PÁGINA 1 -----------------------------
+print("Descargando página 1…")
+html_1 = fetch_page(1)
+rows_1 = parse_html(html_1)
+
+if not rows_1:
+    raise SystemExit("⚠️ La consulta no devolvió resultados. Revisa tus filtros.")
+
+per_page = len(rows_1)
+print(f"{per_page} registros en la primera página.")
+
+# --------------------- RECORRER TODAS LAS PÁGINAS --------------------
+all_rows = rows_1.copy()
+page     = 2
+
+while True:
+    print(f"Descargando página {page}…")
+    html = fetch_page(page)
+    rows = parse_html(html)
+    if not rows:       # deja de iterar cuando ya no hay resultados
+        break
+    all_rows.extend(rows)
+    page += 1
+    time.sleep(PAUSA)
+
+total = len(all_rows)
+print(f"\nTotal descargado: {total} registros "
+      f"(≈ {math.ceil(total/per_page)} páginas).")
+
+# --------------------- GUARDAR EN EXCEL ------------------------------
+df = pd.DataFrame(all_rows)
+out_file = f"latindex_resultados_idModBus{idModBus}.xlsx"
+df.to_excel(out_file, index=False)
+print(f"Archivo guardado: {out_file}")

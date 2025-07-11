@@ -9,6 +9,7 @@ import unicodedata
 import matplotlib.pyplot as plt
 from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
 from rapidfuzz import fuzz, process
+import numpy as np            # si usas NaN
 
 try:
     # Cargar modelo de spaCy en inglés (usa el modelo en_core_web_lg)
@@ -53,12 +54,12 @@ try:
         
         return title
 
-    # Cargar los datos
+    # Cargar los dato
 
-    scopus_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datascopus.csv'
+    scopus_file_path = 'G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datascopus.csv'
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos.xls'
+    wos_file_path = 'G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -67,8 +68,21 @@ try:
         
         # Leer los datos del archivo Excel de Web of Science
         wos_df = pd.read_excel(wos_file_path)
+        def clean_data(cat_str):
+            # Si la celda está vacía, devuelve NaN o cadena vacía
+            if pd.isna(cat_str):
+                return np.nan          # o '' si prefieres dejarla vacía
+            
+            cat_str = str(cat_str)     # fuerza a cadena
+            # 1) Elimina todo lo que esté entre paréntesis
+            no_par = re.sub(r'\([^)]*\)', '', cat_str)
+            # 2) Divide por “;”, recorta espacios y descarta vacíos
+            parts = [p.strip() for p in no_par.split(';') if p.strip()]
+            # 3) Vuelve a unir con “; ”
+            return '; '.join(parts)
+        scopus_df['Author full names'] = scopus_df['Author full names'].apply(clean_data)
         wos_df['Authors'] = wos_df['Authors'].str.replace(',', '')
-        
+
         wos_df['Author(s) ID'] = wos_df['Authors']
         wos_df['Source'] = 'Web of science'
         wos_df['Publication Stage'] = 'Final'
@@ -152,7 +166,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -205,7 +219,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
+    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2025)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -222,7 +236,7 @@ try:
         return authors
 
     # Aplicar la función a la columna 'Authors'
-    combined_df['Authors'] = combined_df['Authors'].apply(process_authors)
+    #combined_df['Authors'] = combined_df['Authors'].apply(process_authors)
     #combined_df['Source title'] = combined_df['Source title'].str.replace(',', '')
     # Normalizar ISSN en df_main
     combined_df['ISSN'] = (
@@ -263,7 +277,8 @@ try:
     
     combined_df['Source title'] = combined_df.apply(assign_canonical_title, axis=1)
     
-    
+    #combined_df['Author full names'] = combined_df['Authors']
+ 
     # Validar y rellenar valores nulos entre columnas de afiliaciones
     def fill_missing_values(row):
         affiliations = row['Affiliations']
@@ -356,7 +371,7 @@ try:
     for col in ['Affiliations', 'Authors with affiliations']:
         if col in combined_df.columns:
             combined_df[col] = combined_df[col].apply(process_record)
-
+    #combined_df['Authors'] = combined_df['Author full names']
     # --------------------------------------------------------------
     # Bloque para calcular y mostrar las estadísticas de salida
     # --------------------------------------------------------------
@@ -534,7 +549,7 @@ try:
     plt.show()
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        
