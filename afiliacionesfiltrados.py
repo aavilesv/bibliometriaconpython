@@ -3,7 +3,7 @@ import re,ast
 from rapidfuzz import fuzz, process
 
 # 1) Leer CSV
-ruta =r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuseliminadas.csv"
+ruta =r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus.csv"
 
 df = pd.read_csv(ruta).fillna("")
 
@@ -244,28 +244,13 @@ df[['Combined_affiliations', 'Removed_affiliations']] = df.apply(
 ## revisar que organzaciones están en el países
 MANUAL_COUNTRY = {
     
-    "allameh tabatabai university": "Iran",
-    "arkansas state university": "United States",
-    "academy of romanian scientists": "Romania",
-    "alliance of bioversity international and the international center for tropical agriculture (ciat)": "Colombia",
-    "charles darwin university": "Australia",
-    "agricultural university of athens": "Greece",
-    "chalmers university technol": "Sweden",
-    "charles university": "Czech Republic",
-    "british council learning center 0108": "United States",
-    "media & creative industries department united arab emirates university uae, jordan": "United Arab Emirates",
-    "indiana university system, jordan":"United States",
-    "girne american university":"Cyprus",
-        "german archaeological institute":"Germany",
-        "chandigarh university": "India",
-        "loughborough university": "United Kingdom",
-        "concordia university, bahrain": "Canada", # Requiere verificación adicional
-        "luleå tekniska universitet": "Sweden",
-
-
-
- 
-
+     "abrose alli university": "nigeria",
+    "bayero university kano": "nigeria",
+    "hanoi university of science": "vietnam",
+    "royal melbourne institute of technology (rmit)": "australia",
+    "swedish university of agricultural sciences": "sweden",
+    "norwagian university of life sciences": "norway",
+    
     # … añade los que necesites
 }
 MANUAL_COUNTRY = {k.lower(): v for k, v in MANUAL_COUNTRY.items()}
@@ -275,7 +260,7 @@ COUNTRY_PAT = re.compile(r'\b(' + '|'.join(map(re.escape, countries)) + r')\b',
                          re.IGNORECASE)
 
 
-def normalize_country(seg: str) -> str | None:
+def normalize_country(seg: str):
     """Devuelve 'Inst, País' o None si no se puede asignar país."""
     seg = expand_abbrev(seg.strip().strip("'\""))
     if not seg:
@@ -375,135 +360,22 @@ MANUAL_REPLACE = {
     # ——— Estados Unidos ———
     
     
-    "academy romanian scientists"         : "academy of romanian scientists",
-    "adam mickiewicz university" :"adam mickiewicz university in poznań",
-    "adam mickiewicz university in poznań" :"adam mickiewicz university in poznań",
-    "agh university of science and technology stanisław staszic in krakow" :"agh university of science and technology",
-    "& lebanese american university	" :"lebanese american university",
-    "“jožef stefan” institute" :"jožef stefan institute",
-   "arizona state university tempe": "arizona state university",
-    "arizona state university": "arizona state university",
-    "australian national university": "australian national university",
-    "australian natl university": "australian national university",
-    "azerbaijan state pedag university": "azerbaijan state pedagogical university",
-    "azerbaijan state pedagogical university": "azerbaijan state pedagogical university",
-    "beihang university of china": "beihang university",
-    "beihang university": "beihang university",
-    "bentley college": "bentley university",
-    "bentley university": "bentley university",
-    "bi norwegian business school": "bi norwegian business school",
-    "bi the norwegian business school": "bi norwegian business school",
-    "brandenburg tech university cottbus": "brandenburg university of technology cottbus-senftenberg",
-    "brandenburg university of technology cottbus-senftenberg": "brandenburg university of technology cottbus-senftenberg",
-    "cent university finance & econ": "central university of finance and economics",
-    "central university of finance and economics": "central university of finance and economics",
-    "chalmers university of technology": "chalmers university of technology",
-    "chalmers university technol": "chalmers university of technology",
-    "chongqing university": "chongqing university",
-    "chongqing university.": "chongqing university",
-    "comenius university bratislava": "comenius university in bratislava",
-    "comenius university in bratislava": "comenius university in bratislava",
-    "comsats institute of information technology": "comsats university islamabad",
-    "comsats university islamabad": "comsats university islamabad",
-    "concordia university - canada": "concordia university",
-    "concordia university": "concordia university",
-    "cranfield school of management": "cranfield university",
-    "cranfield university": "cranfield university",
-    "deakin university in victoria": "deakin university",
-    "deakin university": "deakin university",
-    "delhi technol university": "delhi technological university",
-    "delhi technological university": "delhi technological university",
-    "b. s. abdur rahman university": "b.s. abdur rahman crescent institute of science & technology / university",
-    "department of commerce b.s. abdur rahman crescent institute of science & technology": "b.s. abdur rahman crescent institute of science & technology / university",
-    "ecampus university": "ecampus university",
-    "e-campus university": "ecampus university",
-    "edith cowan university and sir charles gairdner osborne park health care group": "edith cowan university",
-    "edith cowan university": "edith cowan university",
-    "erasmus university rotterdam": "erasmus university rotterdam",
-    "erasmus university": "erasmus university rotterdam",
-    "federico ii university naples": "federico ii university of naples",
-    "federico ii university of naples": "federico ii university of naples",
-    "fundacion pérez scremini-hospital pereira rossell": "fundación pérez scremini-hospital pereira rossell",
-    "fundación pérez scremini-hospital pereira rossell": "fundación pérez scremini-hospital pereira rossell",
-    "gdansk university of technology": "gdańsk university of technology",
-    "gdańsk university of technology": "gdańsk university of technology",
-    "georg august university goettingen": "georg-august-universität göttingen",
-    "georg-august-universität göttingen": "georg-august-universität göttingen",
-    "government college of management sciences": "government college of management sciences",
-    "govt college management sci": "government college of management sciences",
-    "harbin institute of technology (weihai)": "harbin institute of technology",
-    "harbin institute of technology": "harbin institute of technology",
-    "harbin institute technol": "harbin institute of technology",
-    "harbin university of science and technology": "harbin university of science and technology",
-    "harbin university sci & technol": "harbin university of science and technology",
-    "heriot watt university": "heriot-watt university",
-    "huazhong agricultural university": "huazhong agricultural university",
-    "huazhong agricultural university.": "huazhong agricultural university",
-    "humboldt university of berlin": "humboldt university of berlin",
-    "humboldt university": "humboldt university of berlin",
+      # Variantes con extensiones o errores tipográficos
+    "arizona state university-tempe": "arizona state university",
+    "boku university": "boku - university of natural resources and applied life sciences",
+    "center for international forestry research (cifor) jalan cifor": "center for international forestry research (cifor)",
+    "254 chulalongkorn university": "chulalongkorn university",
+    "delft university of technology (tu delft)": "delft university of technology",
     "humboldt-universität zu berlin": "humboldt university of berlin",
-    "indian institute of management (iim system)": "indian institute of management (iim system)",
-    "indian institute of management amritsar": "indian institute of management amritsar",
-    "indian institute of management lucknow": "indian institute of management lucknow",
-    "indonesian collage of tourism economic (stiepari)": "indonesian college of tourism economics (stiepari)",
-    "master management. indonesian collage of tourism economic (stiepari)": "indonesian college of tourism economics (stiepari)",
-    "institute for advanced sustainability studies e.v. (iass)": "institute for advanced sustainability studies (iass)",
-    "institute for advanced sustainability studies": "institute for advanced sustainability studies (iass)",
-    "institute for research and training in agriculture and fisheries (ifapa)": "institute for research and training in agriculture and fisheries (ifapa)",
-    "institute of agricultural and fisheries research and training (ifapa)": "institute for research and training in agriculture and fisheries (ifapa)",
-    "instituto de investigación y formación agraria y pesquera (ifapa)": "institute for research and training in agriculture and fisheries (ifapa)",
-    "college of optometrists": "college of optometrists / institute of optometry",
-    "institute of optometry": "college of optometrists / institute of optometry",
-    "institute of science & technology - austria": "institute of science and technology austria (ista)",
-    "institute sci & technol austria ista": "institute of science and technology austria (ista)",
-    "international center for tropical agriculture ciat": "international center for tropical agriculture (ciat)",
-    "international center for tropical agriculture": "international center for tropical agriculture (ciat)",
-    "iscte-instituto universitário de lisboa (iscte-iul)": "iscte - instituto universitário de lisboa",
-    "instituto universitário de lisboa": "iscte - instituto universitário de lisboa",
-    "jacobs university bremen": "jacobs university bremen",
-    "jacobs university": "jacobs university bremen",
-    "jiangmen industrial technology research institute co.": "jiangmen industrial technology research institute",
-    "jiangmen industrial technology research institute of guangdong academy of sciences": "jiangmen industrial technology research institute",
-    "kings college london": "king's college london",
-    "king’s college london": "king's college london",
-    "king’s business school": "king's college london",
-    "brazil laboratório de justiça territorial da universidade federal do abc": "laboratório de justiça territorial/ambiental da universidade federal do abc",
-    "laboratório de justiça ambiental da universidade federal do abc": "laboratório de justiça territorial/ambiental da universidade federal do abc",
-    "laboratório de justiça territorial da universidade federal do abc": "laboratório de justiça territorial/ambiental da universidade federal do abc",
-    "& lebanese american university": "lebanese american university",
-    "lebanese american university": "lebanese american university",
-    "leuphana universität lüneburg": "leuphana university lüneburg",
-    "leuphana university luneburg": "leuphana university lüneburg",
-    "leuphana university lüneburg": "leuphana university lüneburg",
-    "leuphana university": "leuphana university lüneburg",
-    "linkoping university": "linköping university",
-    "linköping university": "linköping university",
-    "mcgill university health center": "mcgill university health centre",
-    "mcgill university health centre": "mcgill university health centre",
-    "doctor management education. merchant marine collage": "merchant marine college",
-    "masterof law. merchant marine collage": "merchant marine college",
-    "middle east tech university": "middle east technical university (metu)",
-    "middle east technical university cankaya": "middle east technical university (metu)",
-    "middle east technical university": "middle east technical university (metu)",
-    "hse university": "national research university higher school of economics (hse university)",
-    "national research university higher school of economics (hse university)": "national research university higher school of economics (hse university)",
-    "natl res university": "national research university higher school of economics (hse university)",
-    "national school for political and administrative studies": "national university of political studies and public administration (snspa)",
-    "national university of political studies & public administration (snspa) - romania": "national university of political studies and public administration (snspa)",
-    "national university of political studies and public administration": "national university of political studies and public administration (snspa)",
-    "natl university polit studies & publ adm snspa": "national university of political studies and public administration (snspa)",
-    "natl university polit studies & publ adm": "national university of political studies and public administration (snspa)",
-    "nelson mandela university (nmu)": "nelson mandela university (nmu)",
-    "nelson mandela university": "nelson mandela university (nmu)",
-    "northeast forestry university - china": "northeast forestry university",
-    "northeast forestry university": "northeast forestry university",
-    "norwegian university of science and technology": "norwegian university of science and technology (ntnu)",
-    "norwegian university sci & technol ntnu": "norwegian university of science and technology (ntnu)",
-    "o p jindal global university": "o.p. jindal global university",
-    "o.p. jindal global university": "o.p. jindal global university",
-    "open university - united kingdom": "the open university",
-    "open university": "the open university"
-    
+    "norwagian university of life sciences": "norwegian university of life sciences",
+    "sveriges lantbruks universitet (slu)": "swedish university of agricultural sciences (slu)",
+    "swedish university of agricultural sciences": "swedish university of agricultural sciences (slu)",
+    "wageningen univeristy": "wageningen university & research",
+    "wageningen university and research centre": "wageningen university & research",
+    "wageningen university and research": "wageningen university & research",
+    "potsdam institute for climate impact research": "potsdam institute for climate impact research (pik)",
+    "university of british columbia (ubc) and center for international forestry research (cifor)": "university of british columbia",
+
     
     
     
@@ -534,7 +406,8 @@ df = df.drop('All_affiliations_norm', axis=1)  # axis=1 para columnas
 
 
 # 9) Guarda el resultado
-out = r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuafliacion.csv"
+
+out = r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopuafliacion.csv"
 
 df.to_csv(out, index=False)
 print("Resultado guardado en:", out)

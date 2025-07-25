@@ -56,10 +56,10 @@ try:
 
     # Cargar los dato
 
-    scopus_file_path = 'G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datascopus.csv'
+    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos.xls'
+    wos_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -166,7 +166,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -219,7 +219,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2025)
+    filtro = (combined_df['Year'] >= 2000) & (combined_df['Year'] <= 2024)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -478,8 +478,8 @@ try:
     # ——————————————————————————————————————————————————
     # Filtrar rangos de interés (2014–2024)
     # ——————————————————————————————————————————————————
-    mask_sc = scopus_df['Year'].between(2014, 2024)
-    mask_wo = wos_df['Year'].between(2014, 2024)
+    mask_sc = scopus_df['Year'].between(2000, 2024)
+    mask_wo = wos_df['Year'].between(2000, 2024)
 
     # ——————————————————————————————————————————————————
     # Conteo de artículos por año
@@ -549,7 +549,7 @@ try:
     plt.show()
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\master Campoverde Pillajo Carlos\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        
