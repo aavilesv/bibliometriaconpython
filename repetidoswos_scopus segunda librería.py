@@ -56,10 +56,11 @@ try:
 
     # Cargar los dato
 
-    scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
+#scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
+    scopus_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\data_unificada.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos.xls'
+    wos_file_path = 'G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos.xlsx'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -166,7 +167,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -219,7 +220,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2000) & (combined_df['Year'] <= 2024)
+    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -462,7 +463,15 @@ try:
     for col in ["Volume", "Page count", "PubMed ID"]:
         combined_df[col] = pd.to_numeric(combined_df[col], errors='coerce') \
                         .astype("Int64")
+# Reemplazar vacíos o valores no numéricos por 0
+    combined_df["Cited by"] = pd.to_numeric(combined_df["Cited by"], errors="coerce").fillna(0)
 
+# Convertir a enteros
+    combined_df["Cited by"] = combined_df["Cited by"].astype(int)
+    # Reemplazar vacíos o nulos por "subscription"
+    combined_df["Open Access"] = combined_df["Open Access"].fillna("subscription")
+    # También cubrir casos de cadenas vacías " "
+    combined_df["Open Access"] = combined_df["Open Access"].replace(r'^\s*$', "subscription", regex=True)
     # 2. Eliminar la columna 'processed_title'
     combined_df.drop(columns="processed_title", inplace=True)
     print("**Resultados finales:**")
@@ -549,7 +558,7 @@ try:
     plt.show()
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

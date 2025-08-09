@@ -6,7 +6,7 @@ ruta = r'G:\\Mi unidad\\2025\\codigos bibliometria NPL\\'
 
 # Definir la ruta completa de los archivos
 archivo_data1 = ruta + r'\\revistas.xlsx'
-archivo_data2 = ruta + r'\\ext_list_May_2025.xlsx'
+archivo_data2 = ruta + r'\\ext_list_Jun_2025.xlsx'
 
 # Cargar ambos archivos Excel
 df1 = pd.read_excel(archivo_data1)

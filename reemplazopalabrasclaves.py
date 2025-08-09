@@ -4,154 +4,33 @@ import re
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv("G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\datawos_scopuslematizafinal.csv")
+df = pd.read_csv(r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus_keywords_norm.csv")
 
 # Diccionario de palabras clave a reemplazar: clave = palabra a buscar (en minúsculas), valor = palabra de reemplazo
 palabras_clave_reemplazo = {
-    "ai": "artificial intelligence",
-   "artificial intelligence ai": "artificial intelligence",
-   "ai artificial intelligence": "artificial intelligence",
-   "artificial intelligent": "artificial intelligence",
-   "ai technology": "artificial intelligence technologies",
-   "artificial intelligence technology": "artificial intelligence technologies",
-   
-   "iot": "internet of things",
-   "internet of thing": "internet of things",
-   "internet of thing iot": "internet of things",
-   "internet of thing technology": "internet of things",
-   "artificial intelligence of thing": "artificial intelligence of things",
-   "aiot": "artificial intelligence of things",
-   
-   "iiot": "industrial internet of things",
-   "industrial internet of thing iiot": "industrial internet of things",
-   "industrial internet of thing": "industrial internet of things",
+    "model of corporate social responsibility": "corporate social responsibility",
+   "standard of corporate social responsibility": "corporate social responsibility",
+   "forest development project": "forestry development project",
+   "nursery": "tree nursery",
+   "nursery ground": "tree nursery",
+   "rural development programme": "rural development program",
+   "academic program": "education program",
+   "educational program": "education program",
+   "forestry policy": "forest policy",
+   "natural forest protection and restoration for": "fnatural forest protection and restoration",
+   "forest landscape restoration": "landscape restoration",
+   "fforestry education": "forest education",
+   "environmental education be": "environmental education",
+   "sustainability landscape design":"landscape sustainability",
+   "college student":"university student",
+   "college building":"university campus",
+   "university sector":"university campus",
+   "green university campus":"university campus",
+   "sustainability landscape design":"landscape sustainability",
 
-   "ml": "machine learning",
-   "machine learning ml": "machine learning",
-   "machine learning technique": "machine learning",
-   "machine learning model": "machine learning",
+   "decarbonising":"decarbonizing",
+   "sociol ecological land system":"sociol ecological system",
 
-   "dl": "deep learning",
-   "deep learning dl": "deep learning",
-
-   "cnn": "convolutional neural network",
-   "convolutional neural network cnn": "convolutional neural network",
-   
-   "rpa": "robotic process automation",
-
-   "uav": "unmanned aerial vehicles",
-   "unmanned aerial vehicle": "unmanned aerial vehicles",
-   "unmanned aerial vehicle uav": "unmanned aerial vehicles",
-   "unmanned vehicle": "unmanned aerial vehicles",
-   "autonomous unmanned aerial vehicle": "unmanned aerial vehicles",
-   "aerial vehicle": "unmanned aerial vehicles",
-   "drone": "unmanned aerial vehicles",
-
-   "its": "intelligent transportation systems",
-   "intelligent transportation system its": "intelligent transportation systems",
-   "intelligent transport system": "intelligent transportation systems",
-   "intelligent transport": "intelligent transportation systems",
-   "intelligent transportation": "intelligent transportation systems",
-
-   "ids": "intrusion detection system",
-   "intrusion detection system ids": "intrusion detection system",
-   
-   "ict": "information and communication technology",
-   "information communication technology": "information and communication technology",
-
-   "bim": "building information modeling",
-   "building information modelling": "building information modeling",
-   "building information modelling bim": "building information modeling",
-
-   # --- Ortografía, Puntuación y Variaciones Menores ---
-   "block chain": "blockchain",
-   "cyber security": "cybersecurity",
-   "cyber-physical system cp": "cyber-physical systems",
-   "cybe physical system": "cyber-physical systems",
-   "cyber physical system": "cyber-physical systems",
-   "optimisation": "optimization",
-   "digitisation": "digitization",
-   "digitalisation": "digitization",
-   "e government": "e-government",
-   "e governance": "e-government",
-   "digital government": "e-government",
-   "real time": "real-time",
-   "real- time": "real-time",
-   "real time system": "real-time systems",
-   "covid-19": "coronavirus",
-   "sar cov-2": "coronavirus",
-   "5 g": "5g",
-   "5 g mobile communication system": "5g",
-   "industry 40": "industry 4.0",
-   "fourth industrial revolution": "industry 4.0",
-   "industry 50": "industry 5.0",
-   "wi fi": "wifi",
-   "wireless fidelity": "wifi",
-   
-   # --- Sinónimos y Normalización Jerárquica ---
-   "public sector": "public administration",
-   "local government": "public administration",
-   "government": "public administration",
-   "automate decision making": "automated decision making",
-   "automate decision making system": "automated decision making",
-   "decision making process": "decision making",
-   "smart city": "smart cities",
-   "sustainable city": "smart cities",
-   "digital city": "smart cities",
-   "urban development": "urban planning",
-   "city planning": "urban planning",
-   "transport": "transportation",
-   "transport system": "transportation systems",
-   "transportation system": "transportation systems",
-   "car": "automobiles",
-   "automobile": "automobiles",
-   "automate vehicle": "autonomous vehicles",
-   "autonomous vehicle": "autonomous vehicles",
-   "sustainability": "sustainable development",
-   "deep neural network": "neural networks",
-   "artificial neural network": "neural networks",
-   "ann artificial neural network": "neural networks",
-   "recurrent neural network": "neural networks",
-   "convolutional neural network": "neural networks",
-   "neural network": "neural networks",
-   "data analytic": "data analytics",
-   "big data analytic": "big data analytics",
-   "healthcare": "health care",
-   "delivery of health care": "health care",
-   "smart grid": "smart grids",
-   "smart power grid": "smart grids",
-   "intelligent building": "smart buildings",
-   "smart building": "smart buildings",
-
-   # --- Estandarización a Plural (siguiendo tu ejemplo) ---
-   "algorithm": "algorithms",
-   "learning algorithm": "algorithms",
-   "classification algorithm": "algorithms",
-   "system": "systems",
-   "intelligent system": "intelligent systems",
-   "learning system": "learning systems",
-   "embed system": "embedded systems",
-   "technology": "technologies",
-   "digital technology": "technologies",
-   "emerging technology": "technologies",
-   "automation technology": "automation technologies",
-   "review": "reviews",
-   "literature review": "reviews",
-   "systematic review": "reviews",
-   "systematic literature review": "reviews",
-   "model": "models",
-   "learning model": "models",
-   "predictive model": "models",
-   "challenge": "challenges",
-   "research challenge": "challenges",
-   "public service": "public services",
-   "human": "humans",
-   "law and legislation": "laws",
-   "regulation": "laws",
-   "legislation": "laws",
-   "building": "buildings",
-   "city": "cities",
-   "urban area": "urban areas",
 
 
 }
@@ -223,5 +102,5 @@ df['Author Keywords'] = reemplazar_parciales(df['Author Keywords'], patrones_par
 # Guardar el DataFrame modificado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv("G:\\Mi unidad\\2025\\Master Espinoza Carrasco Alex Steven\\data\\wos_scopus_reemplazado.csv", index=False)
+df.to_csv(r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\wos_scopus_reemplazado.csv", index=False)
 print("Palabras clave reemplazadas y nuevo archivo guardado.")
