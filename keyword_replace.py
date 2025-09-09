@@ -4,32 +4,13 @@ import re
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv(r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datawos_scopus_keywords_norm.csv")
+df = pd.read_csv(r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopuseliminadas.csv")
 
 # Diccionario de palabras clave a reemplazar: clave = palabra a buscar (en minúsculas), valor = palabra de reemplazo
 palabras_clave_reemplazo = {
-    "model of corporate social responsibility": "corporate social responsibility",
-   "standard of corporate social responsibility": "corporate social responsibility",
-   "forest development project": "forestry development project",
-   "nursery": "tree nursery",
-   "nursery ground": "tree nursery",
-   "rural development programme": "rural development program",
-   "academic program": "education program",
-   "educational program": "education program",
-   "forestry policy": "forest policy",
-   "natural forest protection and restoration for": "fnatural forest protection and restoration",
-   "forest landscape restoration": "landscape restoration",
-   "fforestry education": "forest education",
-   "environmental education be": "environmental education",
-   "sustainability landscape design":"landscape sustainability",
-   "college student":"university student",
-   "college building":"university campus",
-   "university sector":"university campus",
-   "green university campus":"university campus",
-   "sustainability landscape design":"landscape sustainability",
-
-   "decarbonising":"decarbonizing",
-   "sociol ecological land system":"sociol ecological system",
+  # Trastorno / etiquetas base
+    "TEA": "TEA",
+    "ASD": "ASD",
 
 
 
@@ -102,5 +83,5 @@ df['Author Keywords'] = reemplazar_parciales(df['Author Keywords'], patrones_par
 # Guardar el DataFrame modificado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv(r"G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\wos_scopus_reemplazado.csv", index=False)
+df.to_csv(r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopusreemplazar.csv", index=False)
 print("Palabras clave reemplazadas y nuevo archivo guardado.")

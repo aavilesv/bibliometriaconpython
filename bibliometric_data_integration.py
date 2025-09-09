@@ -57,10 +57,11 @@ try:
     # Cargar los dato
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
-    scopus_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\data_unificada.csv"
+
+    scopus_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datascopus.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos.xlsx'
+    wos_file_path = 'G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -167,7 +168,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -255,29 +256,48 @@ try:
     
     # Lista global para almacenar títulos únicos de revistas
     # Función de asignación priorizando Scopus y luego fuzzy match
+    def _safe_text(x):
+        """Convierte a str solo si hay texto; si es NaN/None devuelve ''."""
+        if isinstance(x, str):
+            return x
+        if pd.isna(x):
+            return ""
+        return str(x)
+
     def assign_canonical_title(row):
-        issn = row['ISSN']
-        src = row['Source']
-        orig = row['Source title']
-       # 0) Eliminar todo lo que esté entre paréntesis (incluidos paréntesis)
-       
-        # Si existe ISSN en mapa y proviene de WoS, tomar título de SCImago (que viene de Scopus)
-        if pd.notna(issn) and issn in scimago_map and src.lower() != 'scopus':
-            return re.sub(r'\([^)]*\)', '', scimago_map[issn]).strip()
+        # Lee campos de forma segura
+        issn = _safe_text(row.get('ISSN', '')).strip()
+        src  = _safe_text(row.get('Source', '')).strip().lower()
+        orig = _safe_text(row.get('Source title', '')).strip()
 
-        # Si no hay ISSN, fuzzy match contra catálogo de títulos canónicos
-        if pd.isna(issn) and src.lower() != 'scopus':
-            best, score, _ = process.extractOne(orig, list(scimago_map.values()), scorer=fuzz.token_sort_ratio)
-            if score > 90:
-                return re.sub(r'\([^)]*\)', '', best).strip()
+        # 1) Si hay ISSN y existe en el catálogo SCImago y el registro NO viene de Scopus,
+        #    usamos el título canónico de SCImago (limpiando paréntesis).
+        if issn and (issn in scimago_map) and (src != 'scopus'):
+            cand = _safe_text(scimago_map.get(issn, '')).strip()
+            if cand:
+                return re.sub(r'\([^)]*\)', '', cand).strip()
 
-        # En otros casos, conservar el original
-        return re.sub(r'\([^)]*\)', '', orig).strip()
+        # 2) Si NO hay ISSN, probamos fuzzy contra el catálogo (siempre que tengamos 'orig')
+        if (not issn) and (src != 'scopus') and orig:
+            best = process.extractOne(orig, list(scimago_map.values()), scorer=fuzz.token_sort_ratio)
+            if best:
+                best_title, score, _ = best
+                if isinstance(score, (int, float)) and score > 90 and isinstance(best_title, str):
+                    return re.sub(r'\([^)]*\)', '', best_title).strip()
 
-        
+        # 3) En cualquier otro caso, devolvemos el original (limpiando paréntesis si hay texto)
+        return re.sub(r'\([^)]*\)', '', orig).strip() if orig else orig
     
+    
+    for col in ['ISSN', 'Source', 'Source title']:
+        if col in combined_df.columns:
+            combined_df[col] = combined_df[col].astype(object)  # evita conversión implícita a float
+            combined_df[col] = combined_df[col].where(~combined_df[col].isna(), None)
+
+    # (Opcional) Si quieres que 'Source' nunca sea nulo:
+    combined_df['Source'] = combined_df['Source'].fillna('unknown')
     combined_df['Source title'] = combined_df.apply(assign_canonical_title, axis=1)
-    
+
     #combined_df['Author full names'] = combined_df['Authors']
  
     # Validar y rellenar valores nulos entre columnas de afiliaciones
@@ -558,7 +578,7 @@ try:
     plt.show()
     # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\Artículos cientificos\\articulo 1\\datawos_scopus.csv"
+    combined_output_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

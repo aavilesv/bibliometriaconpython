@@ -5,8 +5,8 @@ import numpy as np
 ruta = r'G:\\Mi unidad\\2025\\codigos bibliometria NPL\\'
 
 # Definir la ruta completa de los archivos
-archivo_data1 = ruta + r'\\revistas.xlsx'
-archivo_data2 = ruta + r'\\ext_list_Jun_2025.xlsx'
+archivo_data1 = ruta + r'\\data.xlsx'
+archivo_data2 = ruta + r'\\ext_list_Jul_2025.xlsx'
 
 # Cargar ambos archivos Excel
 df1 = pd.read_excel(archivo_data1)
@@ -35,7 +35,7 @@ def obtener_estado(issn_val):
     return "Inactive"
 
 # Aplicar la función a la columna 'Issn' del DataFrame df1 y crear la nueva columna
-df1['Active or Inactive'] = df1['Issn'].apply(obtener_estado)
+df1['Active or Inactive'] = df1['ISSN'].apply(obtener_estado)
 
 # Guardar el DataFrame actualizado en un nuevo archivo Excel en la misma ruta
 archivo_salida = ruta + r'\\data1_actualizado.xlsx'

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 ##  usar por favor esto para poder validar todo from rapidfuzz import fuzz, process
 # Rutas de los archivos SCImago y Scopus
 scimago_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
-wos_scopus_path =  "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus.csv"
+wos_scopus_path =  r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
 
 
 
@@ -98,10 +98,7 @@ print(f"Total matched Scimago:    {matched_count}")
 print(f"Total unmatched Scimago:  {unmatched_count}")
 print(f"% coincidencias:          {pct_match:.2f}%")
 
-#output_path =  "G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_scimago.csv"
 
-#print("Archivo combinado guardado en:", output_path)
-#matched.to_csv(output_path, sep=";", index=False)
 
 # 2) Construir el DataFrame “total”:
 unmatched = wos_scopus.loc[~wos_scopus.index.isin(matched.index)]
@@ -163,10 +160,24 @@ plt.show()
 # ------------------------------------------------------------------
 # 4) (Opcional) Exportar tabla a Excel
 # ------------------------------------------------------------------
-summary.to_excel('SJR_quartile_stats.xlsx', index=False)
+#summary.to_excel('SJR_quartile_stats.xlsx', index=False)
+empty_source_title = wos_scopus['Source title'].isna().sum()
+empty_issn = wos_scopus['ISSN'].isna().sum()
 
-all_with_info['Index Keywords'] = all_with_info['Areas'].str.replace('', '')
-all_with_info['Author Keywords'] = all_with_info['Categories'].str.replace('', '')
+# Registros que no hicieron match (pero sí tenían algún dato)
+unmatched_df = wos_scopus.loc[~wos_scopus.index.isin(matched.index)]
+unmatched_with_data = unmatched_df[
+    unmatched_df['Source title'].notna() | unmatched_df['ISSN'].notna()
+]
+unmatched_with_data_count = len(unmatched_with_data)
+
+print("\n--- Diagnóstico de matching ---")
+print(f"Total registros vacíos en 'Source title': {empty_source_title}")
+print(f"Total registros vacíos en 'ISSN': {empty_issn}")
+print(f"Total registros sin match pero con datos: {unmatched_with_data_count}")
+print(f"Total registros sin match y vacíos: {unmatched_count - unmatched_with_data_count}")
+#all_with_info['Index Keywords'] = all_with_info['Areas'].str.replace('', '')
+#all_with_info['Author Keywords'] = all_with_info['Categories'].str.replace('', '')
 
 columns_to_drop = [
     'Source title_scimago',
@@ -182,8 +193,24 @@ columns_to_drop = [
     'Categories',
     'Areas',
 ]
+'''
+columns_to_drop = [
+    'Source title_scimago',
+    'Issn', 
+    'H index',
+    'SJR Best Quartile',
+    'Country',
+    'SJR Best Quartile',
+    'Region',
+    'SJR',
+    'Publisher',
+        'Coverage',
+    'Categories',
+    'Areas',
+]'''
 #all_with_info = all_with_info.drop(columns=columns_to_drop)
 # 3) Guardar el total
-all_with_info.to_csv("G:\\Mi unidad\\Master en administración y empresas\\articulo 3\\data\\datawos_scopus_scimago.csv", sep=";", index=False)
+r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+all_with_info.to_csv(r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv", index=False)
 
 
