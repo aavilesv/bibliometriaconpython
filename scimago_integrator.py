@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 ##  usar por favor esto para poder validar todo from rapidfuzz import fuzz, process
 # Rutas de los archivos SCImago y Scopus
 scimago_path = "G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
-wos_scopus_path =  r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+wos_scopus_path =  r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_co2untry1.csv"
 
 
 

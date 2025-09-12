@@ -297,6 +297,7 @@ try:
     # (Opcional) Si quieres que 'Source' nunca sea nulo:
     combined_df['Source'] = combined_df['Source'].fillna('unknown')
     combined_df['Source title'] = combined_df.apply(assign_canonical_title, axis=1)
+    
 
     #combined_df['Author full names'] = combined_df['Authors']
  
@@ -411,7 +412,7 @@ try:
     final_total = len(combined_df)
     final_wos_count = len(df_wos_renombrado)
     final_scopus_count = scopus_unique_count
-
+    combined_df["Authors"] = combined_df['Author full names']
     percentage_wos_loaded = (original_wos_count / total_loaded) * 100
     percentage_scopus_loaded = (original_scopus_count / total_loaded) * 100
 

@@ -166,13 +166,14 @@ def normalize_single_keyword(kw: str) -> str:
     return kw
 
 def normalize_cell(cell: str) -> str:
-    if not isinstance(cell, str): return ""
+    if not isinstance(cell, str):
+        return ""
     raw = [t.strip() for t in cell.split(';') if t.strip()]
-    seen, out = set(), []
+    out = []
     for term in raw:
         norm = normalize_single_keyword(term)
-        if norm and norm not in seen:
-            out.append(norm); seen.add(norm)
+        if norm:
+            out.append(norm)   # ← sin 'seen'
     return "; ".join(out)
 
 # ====== MAIN ======

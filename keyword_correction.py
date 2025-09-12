@@ -59,10 +59,7 @@ EXCEPTION_PHRASES = {
 
 # ====== Acrónimos/tecnicismos a proteger ======
 PROTECT_TOKENS = {
-    "vpn","ipsec","ssl","tls","l2tp","pptp","openvpn","wireguard","sd-wan",
-    "qos","iot","cnn","rnn","lstm","bert","gpt","5g","6g","http","https",
-    "tcp","udp","dns","bgp","ospf","mpls","sdn","nfv","kvm","vmware","iaas",
-    "paas","saas","sqa","q-learning","dqn"
+
 }
 
 # ====== Dependencias de corrección ======
@@ -214,16 +211,17 @@ def correct_single_keyword(kw: str) -> str:
     kw = filtrar_basura(kw)
     return kw
 
+
 def correct_cell(cell: str) -> str:
-    if not isinstance(cell, str): return ""
+    if not isinstance(cell, str):
+        return ""
     raw = [t.strip() for t in cell.split(';') if t.strip()]
-    seen, out = set(), []
+    out = []
     for term in raw:
         corr = correct_single_keyword(term)
-        if corr and corr not in seen:
-            out.append(corr); seen.add(corr)
+        if corr:
+            out.append(corr)   # ← ya no checamos 'seen'
     return "; ".join(out)
-
 # ====== MAIN ======
 if __name__ == "__main__":
     t0 = time.perf_counter(); ts0 = datetime.now()

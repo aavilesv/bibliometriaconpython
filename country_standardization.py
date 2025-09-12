@@ -82,17 +82,17 @@ def extract_countries_ner(text: str) -> str:
 # —————————————————————————————
 # 2) Carga y aplicación
 # —————————————————————————————
-ruta_entrada = r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+ruta_entrada = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus.csv"
  
-ruta_salida = r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+ruta_salida = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopuspaís.csv"
 
 df = pd.read_csv(ruta_entrada, encoding="utf-8-sig")
 df["Texto_combinado"] = df["Affiliations"].fillna("") + " " + df["Authors with affiliations"].fillna("")
 df["Countries"] = df["Texto_combinado"].apply(extract_countries_ner)
 
 # 1) Asigna el contenido de Countries a Affiliations, y al mismo tiempo elimina Countries
-#df['Affiliations'] = df.pop('Countries')
-#df["Authors with affiliations"] = df["Affiliations"]
+df['Affiliations'] = df.pop('Countries')
+df["Authors with affiliations"] = df["Affiliations"]
 # 2) Elimina Texto_combinado
 df.drop(columns=['Texto_combinado'], inplace=True)
 # Guardar

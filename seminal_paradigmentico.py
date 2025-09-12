@@ -17,11 +17,11 @@ import numpy as np
 
 # ─────────────── 0 · Parámetros base ──────────────────────────
 RUTA_FUENTE = sys.argv[1] if len(sys.argv) > 1 \
-    else r"G:\Mi unidad\Master en administración y empresas\articulo 3\data\datawos_scopus.csv"
+    else r"G:\Mi unidad\2025\master karla mora\new article scopus\data\datawos_scopus_corrected.csv"
 
-UMBRAL_CITAS_DEF = int(sys.argv[2]) if len(sys.argv) > 2 else 0   # respaldo si no se pasa VALOR_UMBRAL
+UMBRAL_CITAS_DEF = int(sys.argv[2]) if len(sys.argv) > 72 else 70   # respaldo si no se pasa VALOR_UMBRAL
 CUTOFF_YEAR  = 2025
-OUT_DIR      = Path(r"G:\Mi unidad\Master en administración y empresas\articulo 3\data")
+OUT_DIR      = Path(r"G:\Mi unidad\2025\master karla mora\new article scopus\data")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 XLSX_PATH    = OUT_DIR / "03_clasificacion_review.xlsx"            # se sobrescribe
 

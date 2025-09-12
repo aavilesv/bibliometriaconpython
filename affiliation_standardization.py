@@ -5,8 +5,8 @@ from rapidfuzz import fuzz, process
 # 1) Leer CSV
 
 # numero final
-ruta = r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopusnormalizar.csv"
-OUT = r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopusnormalizarinciar1_.csv"
+ruta = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus.csv"
+OUT = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopusafiliación.csv"
 #numero 4 para buscar data
 
 df = pd.read_csv(ruta).fillna("")
@@ -100,7 +100,7 @@ COL_A = "Affiliations"
 COL_B = "Authors with affiliations"
 
 # ================== UMBRAL DE-DUPE (0 desactiva fuzzy) ==================
-DEDUPE_THRESHOLD = 80  # 70-85 suele ir bien; más alto = más estricto
+DEDUPE_THRESHOLD = 70  # 70-85 suele ir bien; más alto = más estricto
 
 # ================== PRIORIDAD (de mayor a menor) ==================
 PRIORITY_PATTERNS = [
