@@ -18,9 +18,9 @@ from unidecode import unidecode
 from rapidfuzz.distance import Levenshtein
 
 # ====== Rutas ======
-INPUT_CSV   = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\datawos_scopus.csv"
-OUTPUT_CSV  = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\datawos_scopus_corrected.csv"
-CHANGE_LOG  = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\logs\01_corrections_log.csv"
+INPUT_CSV   = r"G:\Mi unidad\2025\master Avila Coello Alex Armando\data\datawos_scopusreemplazar.csv"
+OUTPUT_CSV  = r"G:\Mi unidad\2025\master Avila Coello Alex Armando\data\datawos_scopuscorreci.csv"
+CHANGE_LOG  = r"G:\Mi unidad\2025\master Avila Coello Alex Armando\data\01_corrections_log.csv"
 KW_COLS     = ["Author Keywords", "Index Keywords"]
 
 # ====== Parámetros ======
@@ -36,25 +36,7 @@ EXCEPTION_PHRASES = {
     "shared reading", "dialogic reading", "guided play", "serve and return",
     "responsive caregiving", "home-based", "home visit", "home visits", "home visiting",
     "house calls", "child-directed speech", "parent-child interaction", "parent-child interactions",
-    "parent-child relations", "mother-child relations", "mother child relation", "child parent relation",
-    "play and playthings", "learning environment", "home environment", "home care",
-    # Constructos
-    "executive function", "executive functions", "executive functioning",
-    "working memory", "inhibitory control", "cognitive flexibility",
-    "emergent literacy", "early literacy", "school readiness",
-    "vocabulary development", "phonological awareness",
-    "language development", "language ability", "language delay",
-    "language development disorders", "developmental language disorder",
-    "oral language", "receptive language", "theory of mind",
-    "emotion regulation", "self-control", "self control",
-    "social cognition", "social communication", "verbal communication",
-    "nonverbal communication", "interpersonal communication",
-    "social interaction", "social competence", "attention deficit disorder",
-    "attention deficit hyperactivity disorder",
-    # Poblaciones/edades
-    "preschool child", "preschool children", "preschool-children",
-    "young children", "school child", "infant newborn",
-    "early childhood", "early-childhood", "middle aged",
+
 }
 
 # ====== Acrónimos/tecnicismos a proteger ======

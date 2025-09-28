@@ -1,6 +1,6 @@
 #pip install rapidfuzz
 #pip install fuzzywuzzy python-Levenshtein
-
+#linea 247
 import pandas as pd
 import spacy
 import re
@@ -9,8 +9,11 @@ import unicodedata
 import matplotlib.pyplot as plt
 from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
 from rapidfuzz import fuzz, process
-import numpy as np            # si usas NaN
 
+#VARIABLES 
+YEAR_START = 2004
+YEAR_FINAL = 2024
+UMBRAL = 90
 try:
     # Cargar modelo de spaCy en inglés (usa el modelo en_core_web_lg)
     nlp = spacy.load('en_core_web_lg')
@@ -53,15 +56,36 @@ try:
         title = " ".join(lemmas)
         
         return title
+    def normalize_document_type(doc_type):
+        """
+        Normaliza los tipos de documento en Web of Science y Scopus, manejando casos con ';'.
+        """
+        if pd.isna(doc_type):
+            return np.nan  # Maneja valores nulos
 
+        
+
+        # Reemplazar todos los términos que corresponden a "Conference Paper"
+        doc_type = doc_type.replace('Proceedings Paper', 'Conference paper')
+
+        # Normalizar tipos de documento de conferencias
+        if 'conference paper' in doc_type:
+            doc_type = 'Conference Paper'
+
+  
+
+        # Filtrar el exceso de espacios y mantener el formato de ";"
+        doc_type = re.sub(r'\s*;\s*', '; ', doc_type).strip()
+
+        return doc_type
     # Cargar los dato
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
 
-    scopus_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datascopus.csv"
+    scopus_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datascopus.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = 'G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos.xls'
+    wos_file_path = r'G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -89,6 +113,8 @@ try:
         wos_df['Source'] = 'Web of science'
         wos_df['Publication Stage'] = 'Final'
         wos_df['Source Title'] = wos_df['Source Title'].str.replace('&', 'and', regex=False)
+        wos_df['Document Type'] = wos_df['Document Type'].apply(normalize_document_type)
+
        
 
     except Exception as e:
@@ -133,7 +159,7 @@ try:
             doi_matches.append(wos_row['processed_title'])
 
     # (2) Fuzzy matching para títulos
-    threshold_fuzzy = 90  # umbral de similitud
+    threshold_fuzzy = UMBRAL  # umbral de similitud
     similar_titles = []
 
     # Convertir los títulos de Scopus en lista para fuzzy matching
@@ -168,7 +194,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus_repeatedstitles.csv"
+    output_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -221,7 +247,7 @@ try:
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
     # Filtrar por años (2014 a 2024)
-    filtro = (combined_df['Year'] >= 2014) & (combined_df['Year'] <= 2024)
+    filtro = (combined_df['Year'] >= YEAR_START) & (combined_df['Year'] <= YEAR_FINAL)
     combined_df = combined_df.loc[filtro]
     
     def process_authors(authors):
@@ -393,7 +419,7 @@ try:
     for col in ['Affiliations', 'Authors with affiliations']:
         if col in combined_df.columns:
             combined_df[col] = combined_df[col].apply(process_record)
-    #combined_df['Authors'] = combined_df['Author full names']
+    combined_df['Authors'] = combined_df['Author full names']
     # --------------------------------------------------------------
     # Bloque para calcular y mostrar las estadísticas de salida
     # --------------------------------------------------------------
@@ -577,9 +603,105 @@ try:
     ax.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.show()
-    # --------------------------------------------------------------
+    # 1. Convertir Year a numérico
+    combined_df['Year'] = pd.to_numeric(combined_df['Year'], errors='coerce')
+
+
+
+    # Configuración para artículo científico
+    plt.style.use('default')  # Estilo base limpio
+    plt.rcParams['font.family'] = 'serif'  # Fuente serif para publicación
+    plt.rcParams['font.size'] = 10
+    plt.rcParams['axes.labelsize'] = 12
+    plt.rcParams['axes.titlesize'] = 14
+    plt.rcParams['xtick.labelsize'] = 10
+    plt.rcParams['ytick.labelsize'] = 10
+    plt.rcParams['legend.fontsize'] = 9
+
+    # 1. Convertir Year a numérico
+    #combined_df['Year'] = pd.to_numeric(combined_df['Year'], errors='coerce')
+
+    # 2. Crear una copia del DataFrame con las columnas necesarias
+    df_to_explode = combined_df[['Year', 'Document Type']].copy()
+
+    # 3. Dividir y limpiar los tipos de documento
+    df_to_explode['Document Type'] = df_to_explode['Document Type'].str.split(';')
+    df_to_explode['Document Type'] = df_to_explode['Document Type'].apply(
+        lambda x: [item.strip() for item in x if item.strip()] if isinstance(x, list) else [x]
+    )
+
+    # 4. Explotar el DataFrame (crear una fila por cada tipo de documento)
+    exploded_df = df_to_explode.explode('Document Type')
+
+    # 5. Filtrar filas con Year válido (eliminar filas con valores nulos en Year)
+    exploded_df = exploded_df.dropna(subset=['Year'])
+
+    # 6. Agrupar por año y tipo de documento, y contar
+    yearly_document_counts = exploded_df.groupby(['Year', 'Document Type']).size().unstack(fill_value=0)
+
+    # 7. Crear el gráfico con estilo científico
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Paleta de colores para artículo científico (accesible y profesional)
+    scientific_colors = [
+        '#4C72B0',  # Azul
+        '#DD8452',  # Naranja
+        '#55A868',  # Verde
+        '#C44E52',  # Rojo
+        '#8172B3',  # Púrpura
+        '#937860',  # Marrón
+        '#DA8BC3',  # Rosa
+        '#8C8C8C',  # Gris
+        '#CCB974',  # Oro
+        '#64B5CD'   # Turquesa
+    ]
+
+    # Asegurar que tenemos suficientes colores
+    if len(yearly_document_counts.columns) > len(scientific_colors):
+        # Generar colores adicionales si son necesarios
+        cmap = plt.cm.get_cmap('Set3', len(yearly_document_counts.columns))
+        scientific_colors = [cmap(i) for i in range(len(yearly_document_counts.columns))]
+
+    # Crear el gráfico de barras apiladas
+    yearly_document_counts.plot(
+        kind='bar', 
+        stacked=True, 
+        ax=ax, 
+        color=scientific_colors[:len(yearly_document_counts.columns)]
+    )
+
+    # Personalizar el gráfico para artículo científico
+    ax.set_title("Distribution of Document Types by Year", fontweight='bold', pad=15)
+    ax.set_xlabel("Year", fontweight='bold')
+    ax.set_ylabel("Number of Documents", fontweight='bold')
+
+    # Colocar la leyenda dentro del gráfico
+    ax.legend(
+        title="Document Type", 
+        loc='upper left', 
+        bbox_to_anchor=(1.02, 1),
+        title_fontsize=11,
+        frameon=True,
+        edgecolor='black',
+        fancybox=False
+    )
+
+    # Ajustar las etiquetas del eje X
+    plt.xticks(rotation=45, ha='right')
+
+    # Ajustar el diseño
+    plt.tight_layout()
+
+    # Mostrar el gráfico
+    plt.show()
+
+
+    # Mostrar tabla de conteos
+    print("Tabla de distribución de tipos de documento por año:")
+    print(yearly_document_counts)
+        # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = "G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus.csv"
+    combined_output_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

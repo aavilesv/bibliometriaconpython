@@ -5,7 +5,7 @@ import numpy as np
 ruta = r'G:\\Mi unidad\\2025\\codigos bibliometria NPL\\'
 
 # Definir la ruta completa de los archivos
-archivo_data1 = ruta + r'\\data.xlsx'
+archivo_data1 = ruta + r'\\data2.xlsx'
 archivo_data2 = ruta + r'\\ext_list_Jul_2025.xlsx'
 
 # Cargar ambos archivos Excel
@@ -38,7 +38,7 @@ def obtener_estado(issn_val):
 df1['Active or Inactive'] = df1['ISSN'].apply(obtener_estado)
 
 # Guardar el DataFrame actualizado en un nuevo archivo Excel en la misma ruta
-archivo_salida = ruta + r'\\data1_actualizado.xlsx'
+archivo_salida = ruta + r'\\data12_actualizado.xlsx'
 df1 = df1.drop_duplicates()
 df1.to_excel(archivo_salida, index=False)
 

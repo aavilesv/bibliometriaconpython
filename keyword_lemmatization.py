@@ -18,35 +18,15 @@ from unidecode import unidecode
 import spacy
 
 # ====== Rutas ======
-INPUT_CSV   = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\datawos_scopus_corrected.csv"
-OUTPUT_CSV  = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\datawos_scopusnormalizar.csv"
-CHANGE_LOG  = r"G:\Mi unidad\2025\master karla mora\new article scopus\data\logs\02_lemmatize_canonize_log.csv"
+INPUT_CSV   = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus.csv"
+OUTPUT_CSV  = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopuslematizar.csv"
+CHANGE_LOG  = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\logs\02_lemmatize_canonize_log.csv"
 KW_COLS     = ["Author Keywords", "Index Keywords"]
 
 # ====== Config ======
 EXCEPTION_PHRASES = {
     # mismas excepciones que en el script 01
-    "home literacy environment", "home numeracy environment", "home learning environment",
-    "shared reading", "dialogic reading", "guided play", "serve and return",
-    "responsive caregiving", "home-based", "home visit", "home visits", "home visiting",
-    "house calls", "child-directed speech", "parent-child interaction", "parent-child interactions",
-    "parent-child relations", "mother-child relations", "mother child relation", "child parent relation",
-    "play and playthings", "learning environment", "home environment", "home care",
-    "executive function", "executive functions", "executive functioning",
-    "working memory", "inhibitory control", "cognitive flexibility",
-    "emergent literacy", "early literacy", "school readiness",
-    "vocabulary development", "phonological awareness",
-    "language development", "language ability", "language delay",
-    "language development disorders", "developmental language disorder",
-    "oral language", "receptive language", "theory of mind",
-    "emotion regulation", "self-control", "self control",
-    "social cognition", "social communication", "verbal communication",
-    "nonverbal communication", "interpersonal communication",
-    "social interaction", "social competence", "attention deficit disorder",
-    "attention deficit hyperactivity disorder",
-    "preschool child", "preschool children", "preschool-children",
-    "young children", "school child", "infant newborn",
-    "early childhood", "early-childhood", "middle aged",
+"data"
 }
 
 EXCEPTION_NOUNS = {"autism spectrum disorder"}
@@ -57,20 +37,11 @@ BRIT_US = {
 }
 
 PHRASE_CANON = [
-    ("virtual private networks", "VPN"),
-    ("virtual private network",  "VPN"),
-    ("internet of things",       "IoT"),
-    ("quality of service",       "QoS"),
-    ("neural networks",          "neural network"),
+   
 ]
 
 TOKEN_CANON = {
-    "vpn": "VPN", "iot": "IoT", "qos": "QoS",
-    "ipsec": "IPsec", "ssl": "SSL", "tls": "TLS",
-    "l2tp": "L2TP", "pptp": "PPTP",
-    "openvpn": "OpenVPN", "wireguard": "WireGuard",
-    "sd-wan": "SD-WAN",
-    "5g": "5G", "6g": "6G",
+
 }
 
 # ====== spaCy ======

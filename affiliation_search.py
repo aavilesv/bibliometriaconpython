@@ -2,17 +2,18 @@
 import re
 import pandas as pd
 from rapidfuzz import process, fuzz
+from typing import Optional
 
 # ========= RUTAS =========
-CSV_IN   = r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+CSV_IN   = r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryfinal.csv"
 XLSX_BASE = CSV_IN.replace(".csv", "")
-XLSX_OUT_GOOD  = XLSX_BASE + "_terms_org_country.xlsx"
-XLSX_OUT_OTHER = XLSX_BASE + "_terms_other.xlsx"
+XLSX_OUT_GOOD  = XLSX_BASE + "_terms_org_countryAffiliationsfinal.xlsx"
+XLSX_OUT_OTHER = XLSX_BASE + "_terms_otherAffiliations.xlsx"
 
-COL_COMBINED = "Combined_affiliations"
+COL_COMBINED = "Affiliations_final"
 
 # Opciones
-LOWERCASE = True           # poner todo en minúsculas
+LOWERCASE = False           # poner todo en minúsculas
 DROP_EMPTY = True          # quitar vacíos tras limpiar
 
 # ====== Países (canónicos) + alias ======
@@ -82,7 +83,7 @@ ORG_PREFIXES = [
    "clinic","clínica","clinique",
    "unidad","unit","service","servicio",
    "observatorio","observatory",
-   "authority","autoridad","council","consejo","museo", "museum"
+   "authority","autoridad","council","consejo","museo", "museum", "mine"
 ]
 
 # ---------- helpers ----------
@@ -96,7 +97,8 @@ def normalize_piece(s: str) -> str:
         s = s.lower()
     return s
 
-def canonical_country(s: str) -> str|None:
+def canonical_country(s: str) -> Optional[str]:
+
     if not s: return None
     t = s.strip()
     m = re.fullmatch(r'\(([A-Z]{2})\)', t)
@@ -108,6 +110,7 @@ def canonical_country(s: str) -> str|None:
         return COUNTRIES[COUNTRY_CHOICES_LOWER.index(tl)]
     cand = process.extractOne(t, COUNTRIES, scorer=fuzz.WRatio)
     return cand[0] if cand and cand[1] >= 88 else None
+
 
 def is_country_term(term: str) -> bool:
     return canonical_country(term) is not None
@@ -151,13 +154,28 @@ def split_good_vs_other(terms):
             if t not in seen_other:
                 other.append(t); seen_other.add(t)
     return good, other
+def join_semicolon(a: str, b: str) -> str:
+    a = (a or "").strip()
+    b = (b or "").strip()
+    if a and b:
+        return f"{a}; {b}"
+    return a or b
 
 def main():
     df = pd.read_csv(CSV_IN, dtype=str).fillna("")
-    if COL_COMBINED not in df.columns:
-        raise ValueError(f"❌ No se encontró la columna '{COL_COMBINED}' en {CSV_IN}")
+    # Verifica que existan ambas columnas de entrada
+    for col in ["Affiliations_final", "Authors with affiliations_final"]:
+        if col not in df.columns:
+            raise ValueError(f"❌ No se encontró la columna '{col}' en {CSV_IN}")
 
-    terms = explode_terms(df[COL_COMBINED])
+    # === NUEVO: combinar columnas con '; ' ===
+    combined_series = df.apply(
+        lambda r: join_semicolon(r["Affiliations_final"], r["Authors with affiliations_final"]),
+        axis=1
+    )
+
+    # Usar la serie combinada para extraer términos
+    terms = explode_terms(combined_series)
     good, other = split_good_vs_other(terms)
 
     # Guardar a Excel (una columna 'term' en cada archivo)

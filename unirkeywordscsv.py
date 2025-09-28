@@ -4,7 +4,7 @@ import numpy as np
 # Cargar el archivo CSV
 ruta =r"G:\\Mi unidad\\2025\\Master Fabre Triana Paula Dominique\\data\\datawos_scopuseliminadas.csv"
 
-df = pd.read_csv(ruta)
+df = pd.read_excel(ruta)
 
 # Construir listado global normalizado
 all_terms = pd.concat([

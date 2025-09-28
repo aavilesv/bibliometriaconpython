@@ -4,17 +4,20 @@ import re
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv(r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopuseliminadas.csv")
-
+df = pd.read_csv(r"G:\Mi unidad\2025\master Avila Coello Alex Armando\data\datawos_scopus.csv")
+KW_COLS     = ["Author Keywords", "Index Keywords"]
 # Diccionario de palabras clave a reemplazar: clave = palabra a buscar (en minúsculas), valor = palabra de reemplazo
 palabras_clave_reemplazo = {
-  # Trastorno / etiquetas base
-    "TEA": "TEA",
-    "ASD": "ASD",
-
-
+    # VPN & protocolos
+    "vpn": "virtual private network",
 
 }
+
+
+
+
+
+
 
 def reemplazar_palabras_clave(column, diccionario_reemplazo):
     """
@@ -43,13 +46,22 @@ def reemplazar_palabras_clave(column, diccionario_reemplazo):
         return '; '.join(terminos_modificados)
     
     return column.apply(process_cell)
+print("Antes (recuento únicos):")
+for c in KW_COLS:
+    if c in df.columns:
+        nuniq = df[c].dropna().str.split(';').explode().str.strip().replace("", pd.NA).dropna().nunique()
+        print(f"  {c}: {nuniq}")
 
 # Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
 df['Index Keywords'] = reemplazar_palabras_clave(df['Index Keywords'], palabras_clave_reemplazo)
 df['Author Keywords'] = reemplazar_palabras_clave(df['Author Keywords'], palabras_clave_reemplazo)
 #df['bothKeywords'] =  reemplazar_palabras_clave(df['bothKeywords'], palabras_clave_reemplazo)
 # --- A PARTIR DE AQUÍ, EL CÓDIGO NUEVO PARA REEMPLAZOS PARCIALES ---
-
+print("\nDespués (recuento únicos):")
+for c in KW_COLS:
+    if c in df.columns:
+        nuniq = df[c].dropna().str.split(';').explode().str.strip().replace("", pd.NA).dropna().nunique()
+        print(f"  {c}: {nuniq}")
 def reemplazar_parciales(column, patrones):
     """
     Recorre cada celda de la columna, y por cada patrón (regex) en 'patrones',
@@ -83,5 +95,5 @@ df['Author Keywords'] = reemplazar_parciales(df['Author Keywords'], patrones_par
 # Guardar el DataFrame modificado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv(r"G:\\Mi unidad\\2025\\master ROSSEMARY CATALINA MONTIEL ARREAGA\\nuevo artículo latindex\\data\\datawos_scopusreemplazar.csv", index=False)
+df.to_csv(r"G:\Mi unidad\2025\master Avila Coello Alex Armando\data\datawos_scopusreemplazar.csv", index=False)
 print("Palabras clave reemplazadas y nuevo archivo guardado.")

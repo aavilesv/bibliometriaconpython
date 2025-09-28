@@ -5,8 +5,8 @@ from rapidfuzz import fuzz, process
 # 1) Leer CSV
 
 # numero final
-ruta = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopus.csv"
-OUT = r"G:\\Mi unidad\\2025\\master karla mora\\new article scopus\\data\\datawos_scopusafiliación.csv"
+ruta = r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryrevisarr.csv"
+OUT =r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryfinalizar2.csv"
 #numero 4 para buscar data
 
 df = pd.read_csv(ruta).fillna("")
@@ -90,43 +90,44 @@ def normalize_cell(raw: str) -> str:
     return '; '.join(norm)
 
 # 4) Aplicar a columnas
-df['Affiliations'] = df['Affiliations'].apply(normalize_cell)
-df['Authors with affiliations'] = df['Authors with affiliations'].apply(normalize_cell)
+df['Affiliations_final'] = df['Affiliations_final'].apply(normalize_cell)
+df['Authors with affiliations_final'] = df['Authors with affiliations_final'].apply(normalize_cell)
 
 
 
 # ================== COLUMNAS ==================
-COL_A = "Affiliations"
-COL_B = "Authors with affiliations"
+COL_A = "Affiliations_final"
+COL_B = "Authors with affiliations_final"
 
 # ================== UMBRAL DE-DUPE (0 desactiva fuzzy) ==================
-DEDUPE_THRESHOLD = 70  # 70-85 suele ir bien; más alto = más estricto
+DEDUPE_THRESHOLD = 98  # 70-85 suele ir bien; más alto = más estricto
 
 # ================== PRIORIDAD (de mayor a menor) ==================
 PRIORITY_PATTERNS = [
     re.compile(r"\buniv\w*", re.IGNORECASE),                      # universidad / university / université / università ...
     re.compile(r"\binst\w*", re.IGNORECASE),                      # institute / instituto / institution ...
-    re.compile(r"\bcent(?:er|re|ro|rum)?\w*", re.IGNORECASE),     # center/centre/centro/centrum
-    
-    re.compile(r"\bfacu\w*", re.IGNORECASE),                      # facultad/faculty
-    re.compile(r"\bschoo\w*", re.IGNORECASE),                     # school
-    re.compile(r"\bcoll\w*", re.IGNORECASE),                      # college
-    re.compile(r"\bacade\w*", re.IGNORECASE),                     # academy/academia
     re.compile(r"\bescue\w*", re.IGNORECASE),                     # escuela (castellano)
-    re.compile(r"\bminist\w*", re.IGNORECASE),                    # ministerio/ministry
-    re.compile(r"\bmuse\w*", re.IGNORECASE),                      # museo/museum
-    re.compile(r"\bhosp\w*", re.IGNORECASE),                      # hospital/hôpital
-    re.compile(r"\bclin\w*", re.IGNORECASE),                      # clínica/clinic
-    re.compile(r"\blab\w*", re.IGNORECASE),                       # laboratorio/lab
-    re.compile(r"\bobserv\w*", re.IGNORECASE),                    # observatorio/observatory
-    re.compile(r"\basoc\w*", re.IGNORECASE),                      # asociación
-    re.compile(r"\bfund\w*", re.IGNORECASE),                      # fundación/foundation
-    re.compile(r"\bcorp\w*", re.IGNORECASE),                      # corporación/corporation
-    re.compile(r"\bgov\w*", re.IGNORECASE),                       # gobierno/government
-    re.compile(r"\bauth\w*", re.IGNORECASE),                      # autoridad/authority
-    re.compile(r"\bcons\w*", re.IGNORECASE),                      # consejo/council
-    re.compile(r"\bserv\w*", re.IGNORECASE),                      # servicio/service
-    re.compile(r"\bdepart\w*|\bdept\b|\bdep\b", re.IGNORECASE),   # departamento/department
+
+    re.compile(r"^\s*school\w*", re.IGNORECASE),                          # school
+    re.compile(r"^\s*college\b", re.IGNORECASE),                         # college
+    re.compile(r"^\s*acad(?:emia\w*|emy\w*)", re.IGNORECASE),            # academia / academy
+    re.compile(r"^\s*fac(?:ultad\w*|ulty\w*)", re.IGNORECASE),           # facultad / faculty
+    re.compile(r"^\s*muse(?:o|um)\w*", re.IGNORECASE),                   # museo / museum
+    re.compile(r"^\s*hosp\w*", re.IGNORECASE),                           # hospital/hôpital
+    re.compile(r"^\s*cent(?:er|re|ro|rum)?\w*", re.IGNORECASE),          # center/centre/centro/centrum
+    re.compile(r"^\s*clin\w*", re.IGNORECASE),                           # clínica/clinic
+    re.compile(r"^\s*minist(?:erio\w*|ry\w*)", re.IGNORECASE),           # ministerio / ministry
+    re.compile(r"^\s*lab\w*", re.IGNORECASE),                            # laboratorio/lab
+    re.compile(r"^\s*observ\w*", re.IGNORECASE),                         # observatorio/observatory
+    re.compile(r"^\s*fund(?:acion\w*|aci[oó]n\w*|ation\w*)", re.IGNORECASE),  # fundación / foundation
+    re.compile(r"^\s*corp\w*", re.IGNORECASE),                           # corporación/corporation
+    re.compile(r"^\s*gov\w*", re.IGNORECASE),                            # gobierno/government
+    re.compile(r"^\s*auth\w*", re.IGNORECASE),                           # autoridad/authority
+    re.compile(r"^\s*cons\w*", re.IGNORECASE),                           # consejo/council
+    re.compile(r"^\s*serv\w*", re.IGNORECASE),                           # servicio/service
+    re.compile(r"^\s*(?:depart\w*|dept\b|dep\b)", re.IGNORECASE),        # departamento/department
+    re.compile(r"^\s*flac\w*", re.IGNORECASE),                           # FLACSO        <-- antes estaba mal como 'sflac'
+    re.compile(r"^\s*investig\w*", re.IGNORECASE),                       # investig-     <-- antes estaba mal como 'sinvestigador'
 ]
 
 def pick_primary_org(fragment: str) -> str | None:
@@ -212,8 +213,8 @@ df["Combined_universities"] = df.apply(
 total = len(df)
 vacias = int((df["Combined_universities"].str.strip() == "").sum())
 print(f"Filas: {total:,} | Vacías en Combined_universities: {vacias:,} ({vacias/max(total,1):.2%})")
-df["Authors with affiliations"] = df["Combined_universities"] 
-df["Affiliations"] = df["Combined_universities"] 
-df = df.drop(columns=['Combined_universities'])
+#df["Authors with affiliations"] = df["Combined_universities"] 
+#df["Affiliations"] = df["Combined_universities"] 
+#df = df.drop(columns=['Combined_universities'])
 df.to_csv(OUT, index=False, encoding="utf-8")
 print(f"📄 Guardado: {OUT}")
