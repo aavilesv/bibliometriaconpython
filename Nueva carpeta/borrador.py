@@ -1,49 +1,88 @@
+# -*- coding: utf-8 -*-
+import re
 import pandas as pd
+from pathlib import Path
 
-# === Configura aquí tus archivos/columnas ===
-INPUT_XLSX  = r"G:\Mi unidad\2025\codigos bibliometria NPL\Nueva carpeta\data_.xlsx"                 # tu archivo de entrada
-OUTPUT_XLSX = "articulos_exploded.xlsx"        # archivo de salida
-COL_UNIS    = "Combined_universities"          # columna con las universidades
+# ========= CONFIG =========
+IN_PATH  = r"G:/Mi unidad/Artículos cientificos/articulo 1/afiliaciones_detectadas_NOALIASES.csv"
+OUT_PATH = str(Path(IN_PATH).with_name("_unique_organizationsfinal2final3.xlsx"))
 
-# 1) Leer
-df = pd.read_excel(INPUT_XLSX, dtype=str)
+# ========= CARGA =========
+df = pd.read_csv(IN_PATH, dtype=str, keep_default_na=False)
 
-if COL_UNIS not in df.columns:
-    raise ValueError(f"No existe la columna '{COL_UNIS}' en el Excel.")
+# Verificación: solo usamos columnas YA normalizadas
+for col in ["Affiliations_final", "Authors with affiliations_final"]:
+    if col not in df.columns:
+        raise ValueError(f"❌ Falta la columna requerida: {col}")
 
-# 2) Asegurar texto y manejar vacíos
-df[COL_UNIS] = df[COL_UNIS].fillna("").astype(str)
+# ========= EXTRACCIÓN DE ORGANIZACIÓN =========
+PRIORITY_PATTERNS = [
+    re.compile(r"\buniv\w*", re.IGNORECASE),                # university / universidad
+    re.compile(r"\binst\w*", re.IGNORECASE),                # institute / instituto
+    re.compile(r"\bescuel\w*|\bschool\w*", re.IGNORECASE),  # escuela / school
+    re.compile(r"\bcollege\b", re.IGNORECASE),
+    re.compile(r"\bacad(?:emia\w*|emy\w*)", re.IGNORECASE),
+    re.compile(r"\bfac(?:ultad\w*|ulty\w*)", re.IGNORECASE),
+    re.compile(r"\bmuse(?:o|um)\w*", re.IGNORECASE),
+    re.compile(r"\bhosp\w*", re.IGNORECASE),
+    re.compile(r"\bcent(?:er|re|ro|rum)?\w*", re.IGNORECASE),
+    re.compile(r"\bclin\w*", re.IGNORECASE),
+    re.compile(r"\bminist(?:erio\w*|ry\w*)", re.IGNORECASE),
+    re.compile(r"\blab\w*", re.IGNORECASE),
+    re.compile(r"\bobserv\w*", re.IGNORECASE),
+    re.compile(r"\bfund(?:acion\w*|aci[oó]n\w*|ation\w*)", re.IGNORECASE),
+    re.compile(r"\bcorp\w*", re.IGNORECASE),
+    re.compile(r"\bgov\w*", re.IGNORECASE),
+    re.compile(r"\bauth\w*", re.IGNORECASE),
+    re.compile(r"\bcons\w*", re.IGNORECASE),
+    re.compile(r"\bserv\w*", re.IGNORECASE),
+    re.compile(r"\b(?:depart\w*|dept\b|dep\b)", re.IGNORECASE),
+    re.compile(r"\binvestig\w*", re.IGNORECASE),
+]
 
-# 3) Dividir por ';' (ignorando espacios alrededor) y EXPLODE
-#    - Cada valor separado por ';' se convierte en una fila nueva.
-split_series = df[COL_UNIS].str.split(r"\s*;\s*")
-exploded = (
-    df.drop(columns=[COL_UNIS])
-      .join(split_series.explode().rename("University"))
-)
+def pick_primary_org(fragment: str):
+    """Devuelve el segmento más institucional del fragmento (o el primero, si no hay match)."""
+    if not fragment:
+        return None
+    segments = [s.strip(" ,;") for s in str(fragment).split(",") if s.strip(" ,;")]
+    if not segments:
+        return None
+    for rx in PRIORITY_PATTERNS:
+        for seg in segments:
+            if rx.search(seg):
+                return seg
+    return segments[0]
 
-# 4) Limpiar espacios y eliminar filas vacías
-exploded["University"] = exploded["University"].str.strip()
-exploded = exploded[exploded["University"].astype(bool)]
+def split_fragments(text: str):
+    """Usa ';' como separador (si no hay ';', retorna el texto como un único fragmento)."""
+    if not text:
+        return []
+    return [frag.strip(" ;") for frag in str(text).split(";")] if ";" in text else [text.strip()]
 
-# (Opcional) Normalizar mínimamente para reducir duplicados por espacios raros
-exploded["University_clean"] = (
-    exploded["University"]
-    .str.replace(r"\s+", " ", regex=True)
-    .str.strip()
-)
+# ========= RECOPILAR Y DEDUP =========
+candidatas = []
+for col in ["Combined_universities_final"]:
+    for frags in df[col].apply(split_fragments):
+        for frag in frags:
+            org = pick_primary_org(frag)
+            if org:
+                org = re.sub(r"\s+", " ", org).strip(" ,;.")
+                if len(org) >= 2:
+                    candidatas.append(org)
 
-# 5) Conteo de artículos por universidad (según nombre normalizado)
-counts = (
-    exploded["University_clean"]
-    .value_counts(dropna=False)
-    .rename_axis("University_clean")
-    .reset_index(name="n_articulos")
-)
+# De-dup preservando orden (case-insensitive)
+unique_dict = {}
+for org in candidatas:
+    key = org.casefold()
+    if key not in unique_dict:
+        unique_dict[key] = org
 
-# 6) Guardar a Excel con dos hojas:
-with pd.ExcelWriter(OUTPUT_XLSX, engine="openpyxl") as w:
-    exploded.to_excel(w, index=False, sheet_name="exploded")   # filas explotadas
-    counts.to_excel(w,   index=False, sheet_name="counts")     # conteo por uni
+unique_orgs = list(unique_dict.values())
 
-print("Hecho ✅  Archivo generado:", OUTPUT_XLSX)
+# ========= EXPORTAR =========
+out_df = pd.DataFrame({"Organization": unique_orgs})
+with pd.ExcelWriter(OUT_PATH, engine="openpyxl") as writer:
+    out_df.to_excel(writer, index=False, sheet_name="unique_orgs")
+
+print(f"✅ Organizaciones únicas: {len(unique_orgs):,}")
+print(f"📄 Archivo guardado en: {OUT_PATH}")

@@ -3,391 +3,136 @@ import pandas as pd
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv(r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopuslematizar.csv")
+df = pd.read_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replace.csv")
    # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [
 
-     "forestry",
-    "major clinical study",
-    "retrospective study",
-    "brain",
-    "current",
-    "model base opc",
-    "on machine",
-    "early warning score",
-    "high school",
-    "human experiment",
-    "internet of thing",
-    "performance base",
-    "semantic",
-    "offline",
-    "personnel training",
-    "social medium",
-    "turing machine",
-    "university hospital",
-    "balancing",
-    "bangladesh",
-    "clinical deterioration",
-    "clinical outcome",
-    "computation theory",
-    "deterioration",
-    "digital transformation",
-    "failure analysis",
-    "heart arrest",
-    "heart rate",
-    "mortality",
-    "motion compensation",
-    "neural network computer",
-    "professional aspect",
-    "sepsis",
-    "short term memory",
-    "version control system",
-    "aged",
-    "middle aged",
-    "young adult",
-    "breathing rate",
-    "code symbol",
-    "diagnosis",
-    "emergency ward",
-    "engineering research",
-    "follow up",
-    "human resource management",
-    "informatic",
-    "lm",
-    "mathematics",
-    "middle school",
-    "modal analysis",
-    "network base",
-    "observational study",
-    "oxygen saturation",
-    "resuscitation",
-    "software testing",
-    "systolic blood pressure",
-    "adverse event",
-    "animal",
-    "artificial ventilation",
-    "bangkok",
-    "be education",
-    "binary alloy",
-    "book",
-    "budapest university",
-    "budget control",
-    "business intelligence",
-    "business intelligence in education",
-    "centralise",
-    "china",
-    "complication",
-    "component",
-    "condition",
-    "conventional machine",
-    "critical care",
-    "current situation",
-    "cybersecurity",
-    "data assimilation",
-    "digital library",
-    "disease",
-    "down stream",
-    "dynamic",
-    "economic",
-    "economic cost",
-    "electronic medical record",
-    "engineering degree",  # si SOLO ingeniería clínica; de lo contrario, puedes quitarla
-    "emotional intelligence",
-    "facebook",
-    "finance",
-    "financial management",
-    "financial risk",
-    "graph structure",     # grafos genérico sin contexto educativo
-    "health care facility",
-    "heart",
-    "hospital",
-    "hospital admission",
-    "hospitalization",
-    "industrial electronic",
-    "industrial revolution",
-    "intelligent vehicle highway system",
-    "iot",
-    "italy",
-    "k-12",
-    "k-12 education",
-    "kingdom of saudi arabia",
-    "knowledge management",  # genérico; si no lo usas para features, excluir
-    "large amount of data",  # muy genérico
-    "least square approximation",
-    "length of stay",
-    "machine data",
-    "machinery",
-    "markov decision process",
-    "markov process",
-    "medicine",
-    "modern education",      # demasiado genérico
-    "modify early warning score",  # término médico (NEWS)
-    "national taiwan university",
-    "network coding",
-    "network layer",
-    "nigerian university",
-    "numerical model",
-    "operation duration",
-    "opinion",               # sin “mining”
-    "public university",     # demasiado genérico como keyword
-    "record management",
-    "research study",
-    "risk perception",       # fuera de foco si no es EWS
-    "selection",             # genérico
-    "skill",                 # genérico
-    "spark",                 # herramienta genérica; quítala si no filtras por herramientas
-    "statistic",             # genérico
-    "stem",                  # amplio; si no filtras por dominio, excluye
-    "student 's characteristic", # ruido/forma mala
-    "student base",
-    "student population",    # genérico demográfico
-    "supplemental instruction",
-    "teaching quality",      # genérico (no ML/EWS)
-    "times series",          # error tipográfico duplicado de time series
-    "university environment",
-    "academic activity",
-    "academic career",
-    "academic research",
-    "adaptivity",            # genérico
-    "age group",
-    "analysis",              # genérico
-    "analysis approach",
-    "analytic system",
-    "application program",
-    "apply informatic",
-    "apply machine learning",
-    "apply statistic",
-    "area under curve",      # duplicada de 'area under the curve'
-    "asynchronous learning", # fuera de foco si no es para predicción
-    "auto encoder",          # fuera si no consideras representación
-    "automate machine",      # ruido
-    "bachelor 's degree",    # demográfico
-    "bayes classifier",      # sin contexto (ya tienes naive/bayesian)
-    "behavior detection",    # fuera si no analizas comportamiento
-    "behavior pattern",      # muy genérico
-    "bi directional",        # ruido
-    "blending",              # ruido
-    "classified",            # ruido
-    "community detection",   # fuera de foco si no haces grafos
-    "complex network",       # idem
-    "complication",          # clínico
-    "computational model",   # genérico
-    "computer engineering",  # dominio específico
-    "computer network",      # fuera
-    "computer operating system",
-    "computer system programming",
-    "computing education",   # si NO segmentas por subdominio, excluye
-    "condition",             # genérico
-    "course",                # genérico
-    "degree program",        # genérico
-    "demographic group",     # ruido
-    "depression",            # clínico
-    "deregulation",          # política pública
-    "descriptive statistic", # genérico
-    "design and development",# genérico
-    "diagnostic test accuracy study", # clínico
-    "diastolic blood pressure",       # clínico
-    "disruptive technology", # genérico
-    "disruptive technology in education",
-    "domain knowledge",      # genérico
-    "education field",       # genérico
-    "education industry",    # genérico
-    "education institution", # duplicado genérico
-    "education programme",   # genérico
-    "educational activity",  # genérico
-    "educational context",   # genérico
-    "educational material",  # genérico
-    "educational model",     # genérico
-    "educational modelling", # genérico
-    "educational performance", # genérico
-    "educational problem",   # genérico
-    "educational program",   # genérico
-    "educational sector",    # duplicado de education sector
-    "ethical technology",    # genérico
-    "experimental group",    # diseño experimental genérico
-    "exploratory study",     # genérico
-    "face to face",          # genérico
-    "fairness",              # demasiado amplio (usa 'algorithmic fairness')
-    "feature space",         # genérico
-    "feature vector",        # genérico
-    "feedback to student",   # intervención, no predicción
-    "filtration",            # ruido
-    "finance",               # fuera
-    "financial management",
-    "financial risk",
-    "fold cross validation", # duplicado de cross validation
-    "formal education",      # genérico
-    "game design",           # fuera
-    "graduation",            # genérico (usa graduation rate)
-    "graph representation",  # fuera si no haces GNN
-    "health",                # fuera
-    "high degree of accuracy", # ruido
-    "high level language",   # fuera
-    "in hospital mortality", # clínico
-    "independent variable",  # genérico
-    "individual difference", # genérico
-    "inference engine",      # fuera
-    "inform consent",        # clínico/ética biomédica
-    "information",           # genérico
-    "information analysis",  # genérico
-    "information technology sector",
-    "informatization",
-    "institutional framework",
-    "instructional material",
-    "intelligent prediction",# ruido
-    "interaction behavior",  # genérico
-    "intermethod comparison",# clínico/estadístico genérico
-    "internet access",       # variable contextual; suele meter ruido
-    "italy",                 # país
-    "item analysis",         # evaluación educativa general (si no la usas)
-    "kdd",                   # congreso; si no filtras por venues, excluye
-    "knowledge",             # genérico
-    "knowledge graph",       # fuera si no usas KG
-    "large scale",           # genérico
-    "learning ability",      # genérico
-    "learning capability",   # genérico
-    "learning difficulty",   # genérico
-    "learning efficiency",   # genérico
-    "learning framework",    # genérico
-    "learning resource",     # genérico
-    "learning technology",   # genérico
-    "learning tool",         # genérico
-    "life long learning",    # fuera de foco
-    "mean",                  # ruido
-    "modeling language",     # fuera
-    "multi layer perceptron",# duplicada de multilayer perceptron
-    "multi modal",           # genérico (usa multi modal learning/data)
-    "new approach",          # ruido
-    "numerical method",      # fuera
-    "online environment",    # genérico
-    "online high education", # forma rara
-    "open system",           # fuera
-    "operation duration",    # fuera
-    "opinion",               # ya agregado arriba
-    "pathophysiology",       # clínico
-    "patient monitoring",    # clínico
-    "performance factor",    # genérico
-    "performance metrice",   # error ortográfico
-    "personal information",  # privacidad (demasiado amplio)
-    "prediction base",       # ruido
-    "prior knowledge",       # genérico
-    "probability",           # genérico
-    "problem base learning", # metodología; fuera si no segmentas
-    "procedure",             # genérico
-    "quality assurance",     # gestión; fuera
-    "receiver operating characteristic curve", # duplicado de roc curve
-    "reproducibility",       # si no anotas como variable binaria, puede meter ruido
-    "research study",        # genérico
-    "root mean square error",# duplicado de mean square error
-    "selection",             # genérico (ya arriba)
-    "software testing",      # ya arriba
-    "statistical method",    # genérico
-    "statistical model",     # genérico
-    "student data",          # genérico
-    "student education",     # genérico
-    "student enrollment",    # genérico
-    "student feedback",      # intervención, no predicción
-    "technology enhance learning", # forma rara (TEL genérico)
-    "university sector",     # genérico
-    "website",               # fuera
-    "accreditation",         # gestión
-    "attention",             # genérico (mantén “attention mechanism”)
-    "augmented reality",     # fuera del foco
-    "budget control",        # ya arriba
-    "causal inference",      # fuera si no lo usas
-    "classification accuracy",# redundante (usa accuracy)
-    "classroom learning",     # genérico
-    "community detection",    # ya arriba
-    "computational intelligence", # genérico
-    "computer assist instruction", # duplicado/variante
-    "computer vision",        # fuera si no usas CV
-    "computing education",    # ya marcado arriba como excluible
-    "correlation",            # genérico
-    "correlation coefficient",# genérico
-    "counterfactual",         # fuera si no usas XAI causal
-    "course",                 # ya arriba
-    "course design",          # fuera
-    "covid-19 challenge",     # si no filtras por pandemia, excluye
-    "cross validation method",# duplicado de cross validation
-    "cumulative grade point average", # dup de grade point average / cgpa
-    "curricular complexity",  # fuera si no la analizas
-    "data classification",    # genérico
-    "data collection",        # genérico
-    "data collection process",# genérico
-    "data consistency",       # genérico
-    "data reduction",         # genérico
-    "data reliability",       # genérico
-    "data representation",    # genérico
-    "data visualisation",     # duplicado de data visualization
-    "dataset",                # genérico
-    "datum transformation",   # ruido
-    "decision making process",# genérico
-    "decision support",       # genérico
-    "deep learning dl",       # duplicado de deep learning
-    "demographic data",       # genérico
-    "demographic factor",     # genérico
-    "digital footprint",      # fuera
-    "digital library",        # ya arriba
-    "dispositional learning analytic", # inclúyelo si mapeas dispositional LA; si no, excluye
-    "disruptive technology in education", # ya arriba
-    "education field",        # ya arriba
-    "educational analytic",   # forma ruidosa
-    "educational data",       # genérico
-    "educational evaluation", # genérico
-    "electronic health record",# clínico
-    "emotional intelligence", # ya arriba
-    "engineering degree",     # ya arriba
-    "evaluation criterion for data prediction", # ruidoso
-    "experimental evaluation",# genérico
-    "extreme gradient boosting", # si ya tienes xgboost/catboost, puedes excluir
-    "feature importance",     # genérico (puede quedarse, pero tiende a ruido)
-    "felder silverman learning style model fslsm", # fuera del foco
-    "financial management",   # ya arriba
-    "formal education",       # ya arriba
-    "game design",            # ya arriba
-    "gradient method",        # genérico
-    "graph convolutional network", # mantén si usas GCN; si no, excluye
-    "hide markov model",      # si no usas HMM explícitamente, excluye
-    "high accuracy",          # ruido
-    "important feature",      # ruido
-    "improve decision tree",  # ruido
-    "improve smote",          # ruido
-    "independent variable",   # ya arriba
-    "information gain",       # puede meter ruido
-    "information technology sector", # ya arriba
-    "institution of high education",  # forma ruidosa
-    "instructional material", # ya arriba
-    "interactive learning",   # genérico
-    "intermethod comparison", # ya arriba
-    "item analysis",          # ya arriba
-    "knowledge",              # ya arriba
-    "learning and teaching",  # genérico
-    "learning classifier",    # ruidoso
-    "learning course",        # ruidoso
-    "learning design",        # fuera
-    "learning method",        # duplicado de learning technique
-    "learning path",          # fuera si no mapeas rutas
-    "learning situation",     # ruidoso
-    "linear model",           # genérico
-    "mapping",                # genérico
-    "mathematical model",     # genérico
-    "modern education",       # ya arriba
-    "multi dimensional analysis", # genérico
-    "multilayer",             # ruidoso
-    "multiple linear regression", # si ya mantienes linear/logistic/regression analysis
-    "nearest neighbours nn",  # ruido (dup de knn/nearest neighbor)
-    "network layer",          # ya arriba
-    "nn",                     # ruido (abreviatura ambigua)
-    "numerical model",        # ya arriba
-    "online class",           # genérico
-    "online platform",        # genérico
-    "online teaching",        # genérico
-    "ontology 's",            # error/ruido
-    "open system",            # ya arriba
-    "operation duration",     # ya arriba
-    "opinion",                # ya arriba
-    "open university learning analytic dataset", # duplicado de oulad / oulad dataset
-    "article"
+    "article","paper","publication","publications","review","literature review","systematic review",
+    "study","studies","case study","case-studies","case report","research","research papers",
+    "method","methods","methodology","methodologies","approach","approaches","model","models",
+    "framework","frameworks","protocol","protocols","process","processes","procedure","procedures",
+    "design","designs","analysis","analyses","statistical analysis","descriptive analysis",
+    "evaluation","evaluations","assessment","assessments","measurement","measurements","metrics",
+    "results","findings","discussion","conclusions","implications","introduction",
+    # instrumentos/diseños de estudio
+    "questionnaire","questionnaires","survey","surveys","focus groups","interview","interviews",
+    "open-ended questions","qualitative research","quantitative research","mixed methods",
+    "cross-sectional study","cross-sectional studies","randomized controlled trial",
+    "randomized controlled trials as topic","pretest posttest design","pilot study",
+    # etiquetas genéricas de rendimiento
+    "performance","impact","impacts","outcomes","outcome study","effectiveness","efficiency",
+    # términos administrativos
+    "management","organization","organizations","policy","policies","strategy","strategies","modeling",
+    # ruido de formato/colecciones
+    "web of science","scopus","cinahl","psycinfo","open access","openaccess","keywords",
+    # conectores / comodines temáticos
+    "technology","technologies","information","systems","services","environment","context",
+    "implementation","application","applications","factors","challenges","barriers","drivers",
+    "trends","issues","aspects","dimensions","features","characteristics","perspectives","theory",
+    "theories","conceptual framework","conceptual frameworks",
+       "united states","uk","canada","australia","spain","china","india","indonesia","saudi arabia",
+        "vietnam","malaysia","pakistan","jordan","portugal","france","germany","italy","mexico",
+        "latin america","europe","western europe","middle east","south-east asia","southeast asia",
+        "africa","sub-saharan africa","nordic countries","ireland","turkey","uae","ukraine",
+        "west bengal","kerala","karnataka","tamil nadu","jammu and kashmir","henan province",
+        "yangtze river economic belt","western china",
+            "cytotoxicity", "cytotoxicity  immunologic", "dipeptidyl carboxypeptidase inhibitor",
+    "dipeptidyl peptidase iv inhibitor", "embryonic stages", "endotracheal intubation",
+    "diabetes care", "diabetes education", "neoplasm", "neoplasms", "pneumonia  viral",
+    "drug efficacy", "drug misuse", "drug utilization", "resuscitation",
+        "frailty", "frailty prevention",
+    "functional near-infrared spectroscopy",
+    "hemoglobin a1c",
+    "histocompatibility antigens class i", "hla antigen", "hla antigens", "hla-e antigen",
+    "immunoglobulins", "immunomodulation",
+    "insulin",
+    "infectious diseases", "infectious disease medicine",
+    "inpatients", "intensive care unit", "intensive care units",
+    "hospital admission", "hospital emergency service", "hospital pharmacy",
+    "gynecologist",
+    "hydroxychloroquine", "hydrocortisone",
+    "heart surgery", "heart beats",
+    "endotracheal intubation",
+    "hydrocarbons", "gasoline",  # fuera de foco educativo/liderazgo
+    "diabetes care", "diabetes education",  # si tu foco no es salud,
+        # Tokens demasiado generales o de “relleno”
+    "key","form","forms","forum","forums","future","looking","leave",
+    "major factors","main tasks","mapping","mapping method","methods","models","mechanisms",
+    "processes","programs","research","results","losses",
+    "level management","levels of analysis",
+    "learning and teachings","learning and teaching methodologies",
+    "media","news",
+    "online environment","online channels","online products",
+    "market","business","companies","company",
+    "people","workers","students","lecturer",
+    "country","region","world",
+    "quality","efficiency",
+        # Demasiado generales/ambivalentes para co-ocurrencias útiles
+    "opportunity","operations","operations services","operation management",
+    "optimal solutions","optimal systems","optimistic","place","policies","policy",
+    "practice","practices","programs","projects","research design","research focus",
+    "recommendations","regional development","regions of russia","population","presence",
+    "ranking","requirements","representation","resources","review comments","risk factor",
+    "roadmap","roads","salary","sampling","schedule flexibility","science","season",
+    "search","second phase","selection",
+    # Ruido clínico/básico que se aleja del dominio edu/gestión/liderazgo digital
+    "ophthalmology","oral surgery","orthopedics","peptide","peptides",
+    "physiology","protein","proteins","pathogenesis","plasmodesma",
+    # Siglas/abrevs ambiguas de 2-3 letras
+    "pm","plcs","plma","psm systems",
+    
+
+
+
+      # Demasiado genéricos/ruido
+    "system","systems","structure","structures","statistics","success","strategies",
+    "study design","theoretical research","things","tool","tools","temporary","tenure",
+    "transition","translation","understanding","usage situations","users","value streams",
+    # Lugares/propios (no términos conceptuales)
+    "shandong","singapore","slovenia","southwest china","spanish iberia","uae","uk",
+    "texas","uganda","turkey","trinidad and tobago","tanzania","tripura","siberia",
+    "st  mary's college of meycauayan","st mary college of meycauayan",
+    "the university of southern mississippi","university of edinburgh",
+    "university of nebraska-lincoln","us military","united states air force",
+    # Nombres propios/marcas/entidades
+    "sitecore","petronas","telenor","twitter network","theodore roosevelt","theresa may",
+    "shuyan wang","smcm integrated student activities (sis)","smcm integrated student activity",
+    # Biomédico/clinico fuera de dominio principal
+    "simvastatin","sodium glucose cotransporter 2 inhibitor","vascular surgery",
+    "thorax radiography","thorax surgery","tumor board","psychiatry","psychiatric nurses",
+    "pediatric surgery","vascular access","therapeutic target","therapeutic research",
+    # Ambiguas/medios/ruidosas
+    "sports","sport","video games","games","speedspeed","things","season",
+    "standard versions","standard organization",
+      # Lugares / regiones / topónimos
+    "washington","west bengal","west siberia","western balkan leadership",
+    "western china","western europe","western hemisphere","western pacific region",
+    "yangtze river economic belt",
+
+    # Industrias/materiales muy específicos (ruido de dominio)
+    "zinc metallurgy","zinc mine","zinc mines","warehouses","ward",
+
+    # Nombres propios/marcas/eventos/palabras sueltas
+    "whatsapp","whatsapp messenger","zoom","wasta","wenurses","warp-pls"  # <- mantener solo en preserve
+    # Nota: aunque existan como plataformas populares, suelen sesgar co-ocurrencias temáticas
+    ,
+
+    # Demasiado genéricas/ruidosas
+    "x","weight","weight bias","wages","water flow","water movements","water supply",
+    "world-class researches","world class university","work in progress","work form",
+    "working","working systems","working life","working professionals","workers",
+    "worker","workflow","work sites","work form","forms","form",
+
+    # Biomédico/virus (fuera de foco de liderazgo virtual)
+    "virus leadership theory","virus spreading","virus theory","women's health",
+
+    # Militar/casos muy específicos
+    "warfighters",
+
+    # Taxonomías dudosas/ruido
+    "wroclow taxonomy",
+     
+        
 
 ]
 
@@ -434,11 +179,10 @@ def filter_unique(cell):
     terms = [t.strip() for t in cell.split(';') if t.strip()]
     filtered = [t for t in terms if t.lower() in keep_norm]
     return '; '.join(filtered)
-
-df['Index Keywords'] = df['Index Keywords'].apply(filter_unique)
-df['Author Keywords'] = df['Author Keywords'].apply(filter_unique)
+#df['Index Keywords'] = df['Index Keywords'].apply(filter_unique)
+#df['Author Keywords'] = df['Author Keywords'].apply(filter_unique)
 # Guardar el DataFrame filtrado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv(r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopusdelete.csv", index=False)
+df.to_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replace.csv", index=False)
 print("Palabras clave específicas eliminadas y nuevo archivo guardado.")

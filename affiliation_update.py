@@ -1,15 +1,1380 @@
 import pandas as pd
-import re,ast
-
-# 1) Leer CSV
-ruta =r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
-
-df = pd.read_csv(ruta).fillna("")
+import re
+import unicodedata
+from rapidfuzz import process, fuzz
 
 
+# ========= Normalización básica =========
+def strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+def norm_spaces(s: str) -> str:
+    return re.sub(r"\s+", " ", s.strip())
+
+def norm_key(s: str) -> str:
+    return strip_accents(norm_spaces(s)).lower()
+
+# ========== Tu diccionario de reemplazos ==========
+# Usa AQUÍ el diccionario que ya me pasaste (o lo que tengas construido).
+# Clave = variante sucia; Valor = nombre canónico que deseas
 MANUAL_REPLACE = {
-    # ——— Estados Unidos ———
+    # --- EJEMPLOS (pon aquí tu diccionario real) ---
+
+     
+       # ===================== UNAE =====================
+    "Universidad Nacional de Educación UNAE": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "UNIVERSIDAD NACIONAL DE EDUCACION UNAE": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "Universidad Nacional de Educación (UNAE)": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+
+    # ===================== UNACH =====================
+    "Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional de Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # ===================== UISEK =====================
+    "UNIVERSIDAD INTERNACIONAL SEK (UISEK)": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "Universidad Internacional SEK": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # ===================== UIDE =====================
+    "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional Del Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===================== UTEQ =====================
+    "State Technical University of Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+
+    # ===================== UNEMI =====================
+    "State University of Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+
+    # ===================== ULVR =====================
+    "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Universidad Laica Vicente Rocafuerte de Guayaquil (ULVR)": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+
+    # ===================== UDEG =====================
+    "UNIVERSIDAD DE GUAYAQUIL": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil (UG)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Guayaquil University": "UNIVERSIDAD DE GUAYAQUIL",
+    "University of Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # ===================== UTEG =====================
+    "Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil (UTEG)": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil-UTEG": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+
+    # ===================== UCSG =====================
+    "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Santiago de Guayaquil-UCSG": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Santiago de Guayaquil Catholic University (UCSG)": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Catholic University Santiago of Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica Santiago de Guayaquil (UCSG)": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Catholic University of Santiago de Guayaquil (UCSG)": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # ===================== PUCE / PUCESE =====================
+    "Pontifical Catholic University of Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador – Esmeraldas (PUCESE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador- Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador – Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador – Sede Esmeraldas (PUCESE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Católica del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===================== UCACUE =====================
+    "Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca (UCACUE)": "UNIVERSIDAD CATOLICA DE CUENCA",
+	    # ===================== UNACH =====================
+    "National University of Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "National University of Chimborazo (UNACH)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Chimborazo National University": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "University National of Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "National Univ. of Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "National University of Chimborazo UNACH": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "National University of Chimborazo Riobamba": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "The National University of Chimborazo (Ecuador)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "National University of Chimborazo and University of the Armed Forces": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # ===================== UNL =====================
+    "National University of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National University of Loja (UNL)": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National Univ. of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National University of Loja Centro I+D+i de Nutrición Animal": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National University of Loja Research Group in Ecophysiology Agrarian Production": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    # ===================== UNAE =====================
+    "National University of Education (UNAE)": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "National University of Education UNAE": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "National University of Educatiosn": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "National University of Education of Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+    "National University of Education (UNAE) of Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+
+    # ===================== UCE =====================
+    "National Central University of Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # ===================== UIDE =====================
+    "International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "International University of Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "The International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad International del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad International de la Rioja": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",  # (error común en Scopus)
     
+    # ===================== UISEK =====================
+    "International University SEK (UISEK)": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "SEK International University": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "SEK International University of Ecuador": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "International SEK University": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    
+    # ===================== UESS =====================
+    "Universidad de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad de Especialidades Espíritu Santo and National Director of Economic Research": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    
+    # ===================== UCSG =====================
+    "Universidad Católica de Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica de Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    
+    # ===================== UCACUE =====================
+    "Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    
+    # ===================== ULVR =====================
+    "Universidad Laica Vicente Rocafuerte de Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    
+    # ===================== UNEMI =====================
+    "State University of Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Milagro State University": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    
+    # ===================== PUCE =====================
+    "Pontifical Catholic University of Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    
+    # ===================== ESPOL =====================
+    "Polytechnic National University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL",
+    "National Polytechnic University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL",
+    
+    # ===================== UNAE / related =====================
+    "National University of Education": "UNIVERSIDAD NACIONAL DE EDUCACIÓN UNAE",
+	    "Pontificia Universidad Católica del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador-Sede Santo Domingo (PUCESD)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Santo Domin": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Católica del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    
+    "Pontificia Universidad Católica del Ecuador. Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador – Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador Sede Esmeraldas (PUCESE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador Sede Esmeraldas-PUCESE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Ecuador Sede Esmeraldas PUCESE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Ecuador – Sede Esmeraldas (PUCESE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador-Sede Esmeraldas PUCESE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Esmeraldes": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Centro de Investigación. Pontificia Universidad Católica del Ecuador Sede en Esmeraldas (PUCESE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    
+    "Pontificia Universidad Católica del Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Católica del Ecuador-Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catolica Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    
+    "Pontificia Universidad Católica del Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Universidad Católica del Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica Del Ecuador Sede Ibarra (PUCESI)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Prometeo Pontificia Univ Catolica Ecuador Sede Ib": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    "Pontificia Universidad Católica del Ecuador – Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador – Sede Manabí (PUCEM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador-Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador — Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===================== UCACUE (Universidad Católica de Cuenca) =====================
+    "Universidad Católica de Cuenca sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca. Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca-Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca sede Azogues-Extensión": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca sede Azogues- Extensión": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca Sede Azogues Extens Canar": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Sede Macas. Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente de la Universidad Católica de Cuenca sede Azogues-Extensión Cañar": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Facultad de Enfermería de la Universidad Católica de Cuenca sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Medicina de la Universidad Católica de Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Enfermería de la Universidad Católica de Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Facultad de Administración de Empresas de la Universidad Católica de Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente en la Universidad Católica de Cuenca sede Principal": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca sede": "UNIVERSIDAD CATOLICA DE CUENCA",
+
+    # ===================== UNIANDES (Universidad Regional Autónoma de los Andes) =====================
+    "Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Universidad Regional Autonoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Docente de la carrera de Automotriz de la Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "carrera de Automotriz de la Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Sede Ibarra": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    
+    # ===================== UPS (Universidad Politécnica Salesiana) =====================
+    "Universidad Politécnica Salesiana Sede Cuenca": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "De la Universidad Politecnica Salesiana Sede Cuenca": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===================== UTE (Universidad UTE) =====================
+    "Universidad UTE Sede Santo Domingo": "UNIVERSIDAD UTE",
+
+    # ===================== UMET (Universidad Metropolitana del Ecuador) =====================
+    "Universidad Metropolitana del Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Univ Metropolitana Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+
+    # ===================== ESPE (Universidad de las Fuerzas Armadas) =====================
+    "Universidad de las Fuerzas Armadas – ESPE sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Universidad de las Fuerzas Armadas—ESPE sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Universidad de las Fuerzas Armadas - ESPE sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Universidad de las Fuerzas Armadas–ESPE sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+
+    # ===================== UEA (Universidad Estatal Amazónica) =====================
+    "Universidad Estatal Amazónica sede El Pangui": "UNIVERSIDAD ESTATAL AMAZONICA",
+
+    # ===================== UASB (Universidad Andina Simón Bolívar) =====================
+    "Universidad Andina Simón Bolívar (Sede Ecuador)": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Univ Andina Simon Bolivar Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Univ Andina Simon Bolvar Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Univ Andina Simon Bolivar Sede Cent": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+	  # ===================== PUCE (Pontificia Universidad Católica del Ecuador) =====================
+    "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "The Pontifical Catholic University of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador PUCE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cátolica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cat olica del Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador PUCE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador-Ambato Headquarters": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador in Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador – Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador-Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador-Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador in Esmeralda": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic Univ Ecuador PUCE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "PUCE Pontificia Univ Catolica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador PUCE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Catholic University of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Catholic Pontifical University of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Catholic University of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica n Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontiflcia Universidad Catölica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifícia Universidad Católica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolicadel Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catòlica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical University Catholic of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ CatolicaEcuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catlica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Universidad Católica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica delEcuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católico del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catolica Ecuador CIEI PUCE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica del Ecuador - Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador (PUCE) – Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cató lica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic University of Ecuador – Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===================== UCE (Universidad Central del Ecuador) =====================
+    "Universidad Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Central University of Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador (UCE)": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Central University of Ecuador (UCE)": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ. Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ. Central Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "University Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Ecuador Central University": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Ecuador Central University UCE": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univercidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Cent Ecuador Univ": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # ===================== UTE (Universidad UTE) =====================
+    "Univ UTE Ecuador": "UNIVERSIDAD UTE",
+    "Universidad UTE Ecuador": "UNIVERSIDAD UTE",
+
+    # ===================== UEES (Universidad de Especialidades Espíritu Santo) =====================
+    "Universidad Espíritu Santo – Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad Espiritu Santo-Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad de Especialidades Espíritu Santo. Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Espíritu Santo University-Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad Espíritu Santo-Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "University Espíritu Santo - Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Holy Spirit University UEES (Ecuador)": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Samborondón-Ecuador and Espiritu Santo University": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad Espiritu Santo Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Univ Espiritu Santo Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Univ Especialidades Espiritu Santo Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO",
+
+    # ===================== UNIBE (Universidad Iberoamericana del Ecuador) =====================
+    "Universidad Iberoamericana del Ecuador": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Universidad Iberoamericana del Ecuador (UNIB.E)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Universidad Iberoamericana del Ecuador – UNIB.E": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR (UNIBE)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Facultad de Salud y Bienestar Escuela de Nutrición y Dietética Universidad Iberoamericana Del Ecuador (UNIBE)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Docente e Investigadora de la Universidad Iberoamericana del Ecuador": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Iberoamerican University of Ecuador": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+
+    # ===================== UIDE (Universidad Internacional del Ecuador) =====================
+    "Univ Int Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "International University of Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===================== UCACUE (Universidad Católica de Cuenca) =====================
+    "Universidad Católica de Cuenca (Ecuador)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catol Cuenca Ecuador": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca-Ecuador": "UNIVERSIDAD CATOLICA DE CUENCA",
+
+    # ===================== UCECoT (Universidad Católica del Ecuador / variantes) =====================
+    "Universidad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Católica del Ecuador (PUCE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===================== UAGRARIA (Universidad Agraria del Ecuador) =====================
+    "Universidad Agraria del Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Agrarian University of Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agraria del Ecuador UAE": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Agrarian University of Ecuador (UAE)": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agrariadel Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Univ Agr Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Adscrito Universidad Agraria del Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Facultad de Economía Agrícola de la Universidad Agraria del Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+
+    # ===================== UPS (Universidad Politécnica Salesiana) =====================
+    "Salesian Polytechnic University of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesian Polythecnic University of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Politecnica Salesiana University of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana del Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana-Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Univ Politecn Salesiana Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===================== UTMACH (Universidad Técnica de Machala) =====================
+    "Universidad Técnica de Machala (Ecuador)": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala-Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Univ Tecn Machala Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Tech Univ Machala Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+
+    # ===================== UTA (Universidad Técnica de Ambato) =====================
+    "Universidad Técnica de Ambato-Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Universidad Técnica de Ambato Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Univ Tecn Ambato Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Electronic and Industrial Engineering Technical University of Ambato Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+
+    # ===================== UTPL (Universidad Técnica Particular de Loja) =====================
+    "Universidad Técnica Particular de Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja-Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical University of Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # ===================== UTM (Universidad Técnica de Manabí) =====================
+    "Universidad Técnica de Manabí de Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Tecn Manabi Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Estatal Manabi Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # ===================== UTEQ (Universidad Técnica Estatal de Quevedo) =====================
+    "Universidad Técnica Estatal de Quevedo. Ecuador. Vía Quevedo-Santo Domingo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+
+    # ===================== UPEC (Universidad Politécnica Estatal del Carchi) =====================
+    "Universidad Politécnica Estatal del Carchi (Ecuador)": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal Del Carchi-Ecuador": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+
+    # ===================== UNEMI (Universidad Estatal de Milagro) =====================
+    "Universidad Estatal de Milagro UNEMI (Ecuador)": "UNIVERSIDAD ESTATAL DE MILAGRO",
+
+    # ===================== UNIB.E (Universidad Metropolitana del Ecuador) =====================
+    "Universidad Metropolitana del Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Metropolitan University of Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "the Metropolitan University of Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Univ Metropolitana Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Univ Metropolitana Ecuador UMET": "UNIVERSIDAD METROPOLITANA",
+    "UMET Univ Metropolitana Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)": "UNIVERSIDAD METROPOLITANA",
+
+    # ===================== UNIANDES (Universidad Regional Autónoma de los Andes) =====================
+    "UNIANDES University of Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Ambato Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+
+    # ===================== USFQ (Universidad San Francisco de Quito) =====================
+    "Universidad San Francisco de Quito Ecuador (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Francisco Quito Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # ===================== UARTES (Universidad de las Artes) =====================
+    "Univ Artes Ecuador": "UNIVERSIDAD DE LAS ARTES",
+    "Univ Artes Ecuador UARTES": "UNIVERSIDAD DE LAS ARTES",
+
+    # ===================== ESPE (Universidad de las Fuerzas Armadas) =====================
+    "Universidad de las Fuerzas Armadas ESPE Ecuador": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Ecuador Universidad de las Fuerzas Armadas ESPE": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Univ Fuerzas Armadas ESPE Ecuador": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Universidad de las Fuerzas Armadas ESPE de Ecuador": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+
+    # ===================== UNIANDINA (Universidad Andina Simón Bolívar) =====================
+    "Universidad Andina Simón Bolívar-Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Univ Andina Simon Bolivar Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+
+    # ===================== UHEMIS (Universidad de los Hemisferios) =====================
+    "Univ Hemisferios Ecuador": "UNIVERSIDAD DE LOS HEMISFERIOS",
+
+    # ===================== UINDOAMER (Universidad Tecnológica Indoamérica) =====================
+    "Universidad Tecnológica Indoamérica de Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnologica Indoamerica de Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Univ Tecnol Indoamer Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+
+    # ===================== UES (Universidad Estatal del Sur de Manabí) =====================
+    "Universidad Estatal del Sur de Manabí–Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+
+    # ===================== UESPA (Universidad de Especialidades Turísticas) =====================
+    "Universidad de Especialidades Turísticas del Ecuador": "UNIVERSIDAD DE ESPECIALIDADES TURISTICAS",
+
+    # ===================== UNESUM (Universidad Estatal de Bolívar) =====================
+    "Universidad Estatal de Bolívar-Ecuador": "UNIVERSIDAD ESTATAL DE BOLIVAR",
+
+    # ===================== UPEC / UPEC variants =====================
+    "Universidad Politécnica Estatal del Carchi": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+
+    # ===================== UEA (Universidad Estatal Amazónica) =====================
+    "Universidad Estatal Amazónica del Ecuador": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Univ Estatal Amazon Ecuador": "UNIVERSIDAD ESTATAL AMAZONICA",
+
+    # ===================== ULEAM (Universidad Laica Eloy Alfaro de Manabí) =====================
+    "Universidad Laica Eloy Alfaro de Manabí-Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Univ Laica Eloy Alfaro Manabi Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+
+    # ===================== UPSE (Universidad Estatal Península de Santa Elena) =====================
+    "Universidad Estatal Península de Santa Elena La Libertad Ecuador": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+
+    # ===================== UDA (Universidad del Azuay) =====================
+    "The University of Azuay (Ecuador)": "UNIVERSIDAD DEL AZUAY",
+    "Univ Azuay Ecuador": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay-Cuenca-Ecuador": "UNIVERSIDAD DEL AZUAY",
+    "Universidad de Cuenca (Ecuador)": "UNIVERSIDAD DE CUENCA",
+    "University of Cuenca-Ecuador": "UNIVERSIDAD DE CUENCA",
+	   # ===================== UTM (Universidad Técnica de Manabí) =====================
+    "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ. Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabi (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabí (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabí UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "UTM Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Manabí Technical University (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "University Tecnica of Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "University of the South of Manabí (UNESUM)": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Department of Social and Behavioral Sciences of the Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Food and Biotechnology Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad Ingeniería y Ciencias Aplicadas. Universidad Técnica de Manabí (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Physics and Chemistry of the Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Físicas y Químicas de la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Dirección postal Universidad Técnica de Manabí. Av. Universitaria": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí. Portoviejo": "UNIVERSIDAD TECNICA DE MANABI",
+    "Carrera de Medicina Veterinaria. Universidad Tecnica de Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí. Facultad de Ciencias Veterinarias. Departamento de Acuicultura": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabí. Avenida Urbina y Che Guevara": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Ciencias Veterinarias. Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Ciencias Administrativas y Económicas en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Instituto de Posgrado en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Departamento de Procesos Químicos. Universidad Técnica de Manabí. Av. Urbina y Che Guevara": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Posgrado. Universidad Técnica de Manabí. Urbina Avenue and Che Guevara": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Ciencias Básicas en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Docente Investigador de la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Docente en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Profesor Contratado Tiempo Completo de la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Coordinadora de Evaluación y Planificación de Carrera en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Doctora en Estadística. Docente de Estadística y Demografía de la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Licenciada en Enfermería. Docente de la Escuela de Enfermería. Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Docente Titular de la Facultad de Posgrado y de la Carrera de Economía en la Universidad Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Graduate of the Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "the Technical University of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabí Technical": "UNIVERSIDAD TECNICA DE MANABI",
+    "Agricultural Polytechnic University of Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Manabi's Technical University": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Mana-bí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabĺ": "UNIVERSIDAD TECNICA DE MANABI",
+    "UniversidadTécnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad TécnicadeManabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Tecn Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Tecn Manabi UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Trecn Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Tech Univ Manabi UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ Tecn Manab": "UNIVERSIDAD TECNICA DE MANABI",
+    "Fis & Quim Univ Tecn Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Físicas y Químicas Universidad Técnica de Manabí UTM": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # ===================== ULEAM (Universidad Laica Eloy Alfaro de Manabí) =====================
+    "Universidad Laica Eloy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí - ULEAM": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Eloy Alfaro Lay University of Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Eloy Alfaro Secular University of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "University Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Civil University Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Laica Eloy Alfaro University of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "The Universidad Laica Eloy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí Extensión Chone": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí Extensión Pedernales": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí Extensión": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica 'Eloy Alfaro' de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica 'Eloy Alfaro' de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica “Eloy Alfaro” de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica “Eloy Alfaro de Manabí”": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laia Eloy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro deManabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Univ Laica Eloy Alfaro Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Univ La Eloy Alfaro Manabi ULEAM": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Grad Univ Laica Eloy Alfaro Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Univ Laica Eloy Alfaro de Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Laica Eloy Alfaro de Manabí University": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Eloy Alfaro de Manabi University": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+
+    # ===================== UNESUM (Universidad Estatal del Sur de Manabí) =====================
+    "UNIVERSIDAD ESTATAL DEL SUR DE MANABI": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur de Manabí": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "University of the South of Manabí (UNESUM)": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Univ Estatal Sur Manabi": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Univ Estatal Sur de Manabi": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Univ Estatal Sur Manabi UNESUM": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Ciencias Econ Univ Estatal Manabi": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Univ Estatal Manabi": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Doctorante del Programa Doctoral ... Docente de la Universidad Estatal del Sur de Manabí": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur de Manabí (UNESUM)": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+	    "School of Medicine. Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito-School of Medicine": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco University of Quito School of Medicine": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco (USFQ) School of Medicine": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito Medical School": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # ===================== UDLA (Universidad de Las Américas) =====================
+    "and School of Physical and Mathematical Sciences –Universidad de Las Américas": "UNIVERSIDAD DE LAS AMERICAS",
+    
+    # ===================== UEES (Universidad de Especialidades Espíritu Santo) =====================
+    "ESAI Business School - Universidad de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "ESAI Business School – Universidad Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    
+    # ===================== UCUENCA (Universidad de Cuenca) =====================
+    "University of Cuenca School of Medicine": "UNIVERSIDAD DE CUENCA",
+    "Cuenca University School of Medicine": "UNIVERSIDAD DE CUENCA",
+
+    # ===================== YACHAY TECH (Universidad de Investigación de Tecnología Experimental Yachay) =====================
+    "Yachay Tech University School of Physics and Nanotechnology": "UNIVERSIDAD YACHAY TECH",
+    "School of Biological Sciences and Engineering. Yachay-Tech University Hacienda San José": "UNIVERSIDAD YACHAY TECH",
+	  # ===================== YACHAY TECH (Universidad de Investigación de Tecnología Experimental Yachay) =====================
+    "Yachay University for Experimental Technology and Research (Yachay Tech)": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay University for Experimental Technology and Research": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experimental Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experimental Yachay (Yachay Tech University)": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigacion de Tecnologia Experimental YachayTech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Tecnología Experimental Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación y Tecnología Experimental Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación y Tecnología Experimental Yachay Tech Urcuquí": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Investigacíon de Tecnoloǵ?a Experimental Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad de Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad Yachay-Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay Tech University": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "YachayTech University": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay-Tech University": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "University YachayTech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay Tech Univeristy": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "University of Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay Tech University of Technology and Research": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay Experimental Technology Research University": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "University of Investigation and Experimental Technology Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "(Yachay Tech University)": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Communication Networks and Intelligent Services Research Group (ComNet Innova YT)(Yachay Tech University)": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Yachay-Tech University Hacienda San José": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Grupo de Investigación Aplicada en Materiales y Procesos (GIAMP). Escuela de Ciencias Químicas e Ingeniería. Yachay Tech University- San Miguel de Urcuquí": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Researcher Yachay Tech University": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Escuela de Matemáticas y Ciencias Computacionales. Universidad Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Escuela de Ciencias Biológicas e Ingeniería. Universidad Yachay Tech": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Universidad Yachay Tech – SDAS Group": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+    "Univ Invest Tecnol Expt Yachay": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+	    "Faculty of Dentistry. University of Las Americas (UDLA)": "UNIVERSIDAD DE LAS AMERICAS",
+    
+    # ===================== UNIVERSIDAD FRANCISCO MARROQUÍN (GUATEMALA, EXTRANJERA) — OMITIDA =====================
+
+    # ===================== UNIVERSIDAD PERUANA CAYETANO HEREDIA (EXTRANJERA) — OMITIDA =====================
+
+    # ===================== UNIVERSIDAD DE CUENCA =====================
+    "Faculty of Economic and Administrative Sciences of the University of Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad del Azuay (Faculty of Medicine": "UNIVERSIDAD DEL AZUAY",
+    "Faculty of Dentistry of Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Faculty of Clinical Psychology of the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Faculty of Dentistry. Center for Research Innovation and Technology Transfer at the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    
+    # ===================== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====================
+    "Faculty of Computer Science and Electronics Universidad Regional Autónoma de los Ándes": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    
+    # ===================== UNIVERSIDAD ANDINA SIMÓN BOLÍVAR (ECUADOR) — No aparece explícita =====================
+
+    # ===================== UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE) =====================
+    "Faculty of Engineering Sciences of the Equinoccial Technological University": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL",
+
+    # ===================== UNIVERSIDAD TÉCNICA DE AMBATO (UTA) =====================
+    "Faculty of Human Sciences and Education of the Technical University of Ambato": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Faculty of Administrative Sciences of the Technical University of Ambato": "UNIVERSIDAD TECNICA DE AMBATO",
+	    # ===================== ESPOL (Escuela Superior Politécnica del Litoral) =====================
+    "ESPOL Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytechnic University Escuela Superior Politécnica del Litoral": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytechnic University Campus Las Peñas": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytechnic University (ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Geo-Recursos y Aplicaciones (GIGA) ESPOL Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politécnica del Litoral (ESPOL) Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica del Litoral (ESPOL Polytechnic University)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politécnica Del Litoral Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL-Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytechnic Univ. Escuela Superior Politécnica del Litoral": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL.Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Facultad de Ingeniería en Ciencias de la Tierra ESPOL Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Control Ind Univ Polytechn ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytech Univ": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "3ESPOL Polytechnic University": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+
+    # ===================== UPS (Universidad Politécnica Salesiana) =====================
+    "Salesian Polytechnic University (Universidad Politécnica Salesiana—UPS)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesian Polytechnic University": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesian Polytechnic University (UPS)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesite Polytechnic University GIPI": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesiana Polytechnic University": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Polytechnic Salesian University": "UNIVERSIDAD POLITECNICA SALESIANA",
+	    # ===================== UNIVERSIDAD POLITÉCNICA SALESIANA (UPS) =====================
+    "Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politecnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politéncica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politećnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana UPS": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana(UPS)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana Cuenca": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana Campus El Vecino": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana Calle Vieja y Elia Liut – Cuenca": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Politecnica Salesiana University (Universidad Politécnica Salesiana)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesian Politechnic University": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "La Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana de Cuenca": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politeìcnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidade Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécncia Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Polit́ecnica Salesiana (UPS)": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Univerisdad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Narváez Pacheco Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Cátedra UNESCO Tecnologías de apoyo para la Inclusión Educativa: Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "GIPI. Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "INBIAM-Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Grupo de Investigación de Educación Inclusiva (GEI) de la Universidad Politécnica Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Univ Politecn Salesiana": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Univ Politecn Salesina": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===================== UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC) =====================
+    "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC)": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal del Carchi": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal del Carchi-Posgrado": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+
+    # ===================== UNIVERSIDAD METROPOLITANA (UMET) =====================
+    "Universidad Metropolitana": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana UMET": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Univ Metropolitana Univ Cienfuegos": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana del Ecuador-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana de Ecuador": "UNIVERSIDAD METROPOLITANA",
+	  "Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "UNIVERSIDAD SAN FRANCISCO DE QUITO": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco de Quito University (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "University of San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco University of Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco University of Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco de Quito University": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco of Quito University": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco Univ Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Francisco Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Francisco Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Franscisco Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Fracisco Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Francisco Quito Campus Cumbaya": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "USFQ (Universidad San Francisco de Quito)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Franscisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco deQuito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco-Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito USFQ Campus Cumbayá": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito USFQ Cumbayá": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Campus Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito USFQ and University of North Carolina at Chapel Hill UNC": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito and Galapagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito/Galápagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito-Galapagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito & UNC-Chapel Hill Galapagos Science Center (GSC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) & UNC-Chapel Hill Galápagos Science Center (GSC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito USFQ-University of North Carolina at Chapel Hill UNC": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Galapagos Sci. Ctr. Gsc (Univ. S. Francisco de Quito USFQ-Univ. of N. Carolina at Chapel Hill UNC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Environmental Engineering. Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Instituto BIOSFERA Universidad San Francisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Instituto Biosfera. Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Colegio de Ciencias e Ingenierías Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Arte Culinario y Turismo Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Escuela de Odontología Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Centro de Transferencia y Desarrollo de Tecnologías de la Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Colegio de Ciencias Biológicas y Ambientales Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Lab de Ecol. Ac. Colegio de Ciencias Biol. y Amb. Univ. San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "GAIAS University San Francisco of Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Campus Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Instituto de Geografía-Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Ambientales-Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Department of General Surgery & Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito Colegio de Ciencias de la Salud": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito. Hospital General Luis Vernaza": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito. Hospital de los Valles": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Corporación Ecuatoriana para el Desarrollo de la Investigación y Académica CEDIA and Universidad San Francisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Corporación Ecuatoriana para el Desarrollo de la Investigación y Académica CEDIA & Universidad San Francisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Académico de la Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "abogado por la Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Es Asistente de Investigación en el Instituto de Investigaciones Jurídicas del Colegio de Jurisprudencia de la Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # ===================== UNIVERSIDAD DE LAS AMÉRICAS (UDLA) =====================
+    "Universidad de Las Américas Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Américas (UDLA) Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad de las Américas-Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad de Las Americas Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "University of the Americas (UDLA) Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "Univ Las Amer Quito": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===================== UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE) =====================
+    "UTE University of Quito": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL",
+    "Universidad Tecnológica Equinoccial de Quito (UTE)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL",
+    "Universidad Tecnologica Indoamerica–Quito": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnologica Indoamerica – Quito": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Univ Tecnol Quito": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL",
+
+    # ===================== PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR =====================
+    "Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Miembro y Asesor Médico del Comité de Bioética Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===================== UNIVERSIDAD ANDINA SIMÓN BOLÍVAR (UASB) =====================
+    "Universidad Andina Simón Bolívar (Quito)": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Andina Simón Bolí-var-Quito": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Univ Andina Simon Bolivar Quito": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Andina Simon Bolivar University of Quito": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+	   "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "UNIVERSIDAD TECNICA PARTICULAR DE LOJA": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja - UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja-UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja – UTPL Pedestal": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. Grupo de Investigación “Comunicación y Cultura Audiovisual” GICA": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. San Cayetano Alto s/n Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. San Cayetano Alto": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja San Cayetano Alto": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular del Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Partícular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técncia Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Smartland-Universidad Técncia Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad T écnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tècnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universdiad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja/Seccion Ingenieria de Procesos": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja/Seccion Quimica Basica y Aplicada": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja/UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Economics Department at Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Department of Chemistry. Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Carrera de Medicina Facultad Ciencias de la Salud. Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Titulación de Medicina Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Estudiante carrera de Enfermería-Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Maestrante en Comunicación mención Investigación y Cultura Digital por la Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. Departamento de Ciencias de la Salud": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Docente del Departamento de Ciencias de Comunicacion de la Universidad Tecnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Investigador de la Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Residente de Medicina Familiar en la Universidad Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Docente Invitado en la Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Consultor Ambiental y Docente de la Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Loja Campus Universitario": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Campus Univ Tecn Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecnica Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Campus Univ Tecn Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecnica Particular Loja UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Tecnica Particular Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # ===================== VARIANTES EN INGLÉS =====================
+    "Private Technical University of Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Private Technical University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical University of Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical Particular University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical Particular University of Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Particular Technical University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Technical University of Loja Particular": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Técnica Particular de Loja University": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Tecnica Particular de Loja University": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Tecnic Particular University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "23 Technical Particular University of Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+	    "Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "University of Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Univ. of Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad de Cuenca. Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad estatal de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Facultad de Ciencias Químicas Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Carrera de Ingeniería Ambiental de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Centro de Estudios Ambientales (CEA) de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Centro de Estudios Ambientales-Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "CEA de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad de Cuenca Centro de Estudios Ambientales": "UNIVERSIDAD DE CUENCA",
+    "Universidad de CuencaRed Sismica Del Austro": "UNIVERSIDAD DE CUENCA",
+    "Department of Computer Sciences of the Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Laboratorio de Sanitaria de la Facultad de Ingeniería de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Laboratorio de Biotecnología de la Reproducción Animal Facultad de Ciencias Agropecuarias Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Grupo CATOx – CEA de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Grupo de Biotecnología y Biodiversidad. Departamento de Química Aplicada y Sistemas de Producción. Facultad de Ciencias Químicas. Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Jiménez es Investigador del Grupo de Investigación en Economía Regional en la Facultad de Ciencias Económicas y Administrativas de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Facultad de Ciencias Médicas de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Facultad de Ciencias Agropecuarias. Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Facultad de Química-Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Departamento de Biociencias. Facultad de Ciencias Químicas. Universidad de Cuenca. Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Dirección de Investigación de la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Especialista en Medicina Familiar por la Universidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Bélgica. Docente-Investigadora de la Facultad de Filosofía de la Universidad de Cuenca (UCuenca)": "UNIVERSIDAD DE CUENCA",
+    "Máster en Psicoterapia del Niño y de la Familia por la Universidad de Cuenca (UCuenca)": "UNIVERSIDAD DE CUENCA",
+    "University of Cuenca (UC)": "UNIVERSIDAD DE CUENCA",
+    "Universidad de Cuenca (UC)": "UNIVERSIDAD DE CUENCA",
+    "Univesidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "University of Cuenca at Campus Paraíso": "UNIVERSIDAD DE CUENCA",
+    "University of Cuenca at Campus Yanuncay": "UNIVERSIDAD DE CUENCA",
+    "University of CuencaDepartamento de Espacio Y": "UNIVERSIDAD DE CUENCA",
+    "Cuenca University": "UNIVERSIDAD DE CUENCA",
+    "University Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad del Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Univ Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Univ Estatal Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Hosp Univ Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad Tecn Cuenca": "UNIVERSIDAD DE CUENCA",
+
+    # ===================== UNIVERSIDAD CATÓLICA DE CUENCA (UCACUE) =====================
+    "Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca (UCACUE)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic University of Cuenca (UCACUE)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Cuenca Catholic University": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic Univ Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca UCACUE": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca Matriz Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca Extens Canar": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca IICACUE": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catol Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univedad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca UCACUE": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Pontificia Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "The Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic University of Cuenca-Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic University of Cuenca extension of Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Nursing Career of the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Master in Renewable Energies Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "and Technology Transfer (CIITT) of the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Laboratory of Genetics and Molecular Biology of the Center for Research Innovation and Technology Transfer at the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Ciencia y Energía de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología (CIITT) at the Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología (CIITT) de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología (CIITT) at the Catholic University of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca − CIITT": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca—CERN Research Center": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca. Provincia de Azuay": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca. Provincia del Azuay": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Extensión Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Extensión Cañar": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Matriz Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca-Matriz Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Posgrado": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca. Posgrado": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad católica de Cuenca Posgrado": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca-Posgrado-Educación": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Posgrados de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Maestría en Gestión del Cuidado del Posgrados de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Maestría en Gestión del Cuidado de Posgrados de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Maestría en Gestión del Cuidado del Paciente Posgrados de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Unidad Académica de Administración de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Facultad de Psicología de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Facultad de Psicología Clínica de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Facultad de Odontología de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Psicología Clínica de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Odontología de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Administración de Empresas en la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Enfermería de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Carrera de Enfermería": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Carrera de Psicología Clínica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Carrera de Psicología Clínica–Matriz": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca – carrera de Enfermería": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca – carrera de Medicina": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca-Carrera de Medicina": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Médico General por la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Médico General Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente de la Universidad Católica de Cuenca Extensión Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente de la Universidad Católica de Cuenca Hospital Universitario del Rio": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Decana de la Unidad Académica de Salud y Bienestar de la Universidad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca. Unidad de salud y bienestar": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca Unidad Académica de Salud y Bienestar Carrera de Enfermería": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Institute of Neurosciences of the Universidad Catolica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica de Cuenca UCACUE": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univ Catolica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+	    "UNIVERSIDAD ESTATAL DE MILAGRO": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagro (UNEMI)": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagro – UNEMI": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagro UNEMI": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal del Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagros": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagros UNEMI": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "University Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad del Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad del Milagro (UNEMI)": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Cdla. Universitaria “Dr. Rómulo Minchala Murillo” – km. 1.5 vía Milagro – Virgen de Fátima": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Cdla. Universidad 'Dr. Rómulo Minchala Murillo'-Km 1.5 vía Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Cdla. Universitaria Km. 1.5 vía Milagro-Km26": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Cdla. Universitaria Km. 1.5 vía Milagro-Km26. Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Calzada Universitaria Km. 1.5 vía Milagro-Km26": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Calzada Universitaria Km. 1.5 vía Milagro-Km 26": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Calzada Univ Km 1-5 Via Milagro Km26": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Cdla Univ Km 1-5 Via Milagro Km 26": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagro: Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente de la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente Investigador en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente Investigador de la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente Titular Tiempo Completo en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente de Medio Tiempo en la Universidad Estatal de Milagro Facultad de Ciencias Sociales": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Magister en Desarrollo Local Docente Tiempo Completo en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Economía y Empresa – Universidad Autónoma de Madrid. Docente en la Universidad Estatal de Milagro – Universidad Autónoma de Madrid": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Facultad de Posgrado de la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Facultad de Cienciasde la Educación de la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Profesora de la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente Investigador en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Docente Titular Tiempo Completo en la Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Johana Espinel Universidad Estatal de Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Egresado de la Universidad Estatal de Milagro UNEMI": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Univ Estatal Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Univ Estatal Milagro UNEMI": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Univ Estatal Milagros": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Univ Milagro": "UNIVERSIDAD ESTATAL DE MILAGRO",
+
+ "UNIVERSIDAD DEL AZUAY": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universidad Del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universidad de Azuay": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "The University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay (UDA)": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay UDA": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay (UDA) – TRACES Research Group": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay (UDA) - CIENER Research Group": "UNIVERSIDAD DEL AZUAY",
+    "Herbario de la Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Museo de Zoología de la Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Museo de Zoología de la Universidad del Azuay MZUA": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay MZUA": "UNIVERSIDAD DEL AZUAY",
+    "Universidad Del Azuay (MZUA)": "UNIVERSIDAD DEL AZUAY",
+    "Arquitecta en Civity Group Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Licenciado en Comunicación Social y Publicidad por Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Arquitectura y Arte en la Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Facultad de Ciencias de la Administración en la Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Escuela de Biología de la Universidad Del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Vertebrados de la Universidad Del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univ del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univ. del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univ Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univer-sidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universi-dad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universidad Empathy and Family Functioning in Medical Students of the University of Azuay": "UNIVERSIDAD DEL AZUAY",
+	    # ===================== UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE) =====================
+    "Universidad Tecnológica Equinoccial": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial (UTE)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial – UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial-UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial de Quito (UTE)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnica Equinocial (UTE)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnologica Equinoccial UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial (UTE)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnológica Equinoccial–UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE. Avenida Mariscal Sucre y Mariana de Jesús": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE Calle Rumipamba S/N y Bourgeois": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE. Av. Mariscal Sucre y Av. Mariana de Jesús": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Eugenio Espejo. Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Facultad de Ciencias de la Salud Eugenio Espejo. Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "UTE University": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "UTE University of Quito": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "University UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad de Quito UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE Quito": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidad UTE (Quito)": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Universidade UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "Univ UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "UTE Quito": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "PhD. en Ciencias Económicas y Empresariales. Master en Dirección de Empresas. Ingeniero Industrial. Profesor Agregado en la Facultad de Ciencias Administrativas de la Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "PhD. en Arte. Master en Gestión de Empresas Turísticas. Profesora Auxiliar e Investigadora de la Facultad de Ciencias Sociales de la Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+    "PhD. en Ciencias Técnicas. Ingeniero Industrial. Profesor Agregado e Investigador en la Facultad de Ciencias Administrativas de la Universidad UTE": "UNIVERSIDAD TECNOLOGICA EQUINOCCIAL (UTE)",
+
+    # ===================== UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ) =====================
+    "Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo - UTEQ": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo-UTEQ": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo-(UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo – UTEQ": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Technical University of Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "UTEQ University": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Univ Tecn Estatal Quevedo UTEQ": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo UTEQ": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo-(UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO (UTEQ)",
+
+    # ===================== UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES (UTE-LVT) =====================
+    "Universidad Técnica Luis Vargas Torres": "UNIVERSIDAD TECNICA LUIS VARGAS TORRES (UTE-LVT)",
+    "Universidad Técnica Luis Vargas Torres (UTE-LVT)": "UNIVERSIDAD TECNICA LUIS VARGAS TORRES (UTE-LVT)",
+    "Universidad Técnica ‘Luis Vargas Torres’": "UNIVERSIDAD TECNICA LUIS VARGAS TORRES (UTE-LVT)",
+    "Universidad Tecnica LVT": "UNIVERSIDAD TECNICA LUIS VARGAS TORRES (UTE-LVT)",
+
+    # ===================== UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL (UTEG) =====================
+    "Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+    "Universidad Tecnológica Empresarial de Guayaquil (UTEG)": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+    "Univ Tecnol Empresarial UTEG": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+    "UTEG University": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+	 # ===================== UNIVERSIDAD ESTATAL AMAZÓNICA (UEA) =====================
+    "UNIVERSIDAD ESTATAL AMAZONICA": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazònica": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica (UEA)": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica. Puyo": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica-Centro de Investigación": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica. Campus Central": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica UEA": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica - UEA": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Universidad Estatal Amazónica-UEA": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Univ. Estatal Amazónica": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Univ Estatal Amazon UEA": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Univ Estatal Amazonica": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+    "Univ Estatal Amazon": "UNIVERSIDAD ESTATAL AMAZÓNICA (UEA)",
+
+    # ===================== UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB) =====================
+    "UNIVERSIDAD ESTATAL DE BOLIVAR": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Universidad Estatal de Bolívar": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Universidad Estatal de Bolívar (UEB)": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Universidad Estatal de Bolívar. Campus Académico “Alpachaca”": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Universidad Estatal de Bolívar. Carrera Ingeniera Agroindustrial": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Universidad Estatal de Bolívar UEB. Facultad de Ciencias Agropecuarias": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Carrera de Enfermería de la Universidad Estatal de Bolívar": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Univ Estatal Bolivar": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+    "Enfermeria Univ Estatal Bolivar": "UNIVERSIDAD ESTATAL DE BOLÍVAR (UEB)",
+
+    # ===================== UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ) =====================
+    "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo – Facultad de Ciencias Pecuarias y Biológicas –": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo. Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo – Campus La María": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo-Los Ríos": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidad Técnica Estatal de Quevedo. Campus Ing. Manuel Haz Álvarez": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Facultad de Ciencias Pecuarias de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Ingeniera Forestal. Docente de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Docente en la Facultad de Ciencias Pecuarias de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Profesor Titular y Coordinador de Carrera en la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Docente a Tiempo Completo de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Docente-Investigador de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Carrera de Zootecnia de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Master en Eléctrica... Director de Investigación de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Docente en la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Docente de Tiempo Completo de la Universidad Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Univ. Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Univ Tecn Estatal Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+    "Universidade Técnica Estatal de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ)",
+
+    # ===================== UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE) =====================
+    "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena (UPSE)": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena UPSE": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena – UPSE": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena - UPSE": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal de la Península de Santa Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Sant Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Penisula de Santa Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Pen nsula de Santa Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Universidad Estatal Península de Santa Elena La Libertad": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+    "Univ Estatal Peninsula Santa Elena": "UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE)",
+	    "Universidad del Pacífico Escuela de Negocios": "UNIVERSIDAD DEL PACÍFICO - ESCUELA DE NEGOCIOS (ECUADOR)",
+    "Universidad del Pacifico Escuela de Negocios": "UNIVERSIDAD DEL PACÍFICO - ESCUELA DE NEGOCIOS (ECUADOR)",
+    "Univ del Pacifico Escuela de Negocios": "UNIVERSIDAD DEL PACÍFICO - ESCUELA DE NEGOCIOS (ECUADOR)",
+    "University of the Pacific School of Business (Ecuador)": "UNIVERSIDAD DEL PACÍFICO - ESCUELA DE NEGOCIOS (ECUADOR)",
+
+    # ===== USFQ =====
+    "Escuela de Odontología Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ)",
+    "Escuela de Odontologia Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ)",
+
+    # ===== ESPOL =====
+    "Univ Escuela Ingn Sistemas": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Univ Ingn": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+	   "Universidad Tecnológica ECOTEC": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Ecotec University": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "ECOTEC Technological University": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Tecnologica ECOTEC": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "La Universidad Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Gobernabilidad de la Universidad Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Ecotec de Samborondón": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Técnica de Babahoyo Trabaja en Universidad Ecotec. Docente Tiempo Completo": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Tecnólogica Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Univ Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+	  "ESPOL University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPOL Polythecnic University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+	  "Technical University of Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo (UTB)": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Technical University of Babahoyo (UTB)": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo-Extensión Quevedo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo-Extensión": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo Extensión Quevedo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad técnica de Babahoyo. Extensión Quevedo (UTB)": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Instituto Superior Tecnológico \"Ciudad de Valencia\". Campus Extensión de la Universidad de Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Av. Universitaria Km 21 2 Av. Montalvo. Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Universidad Técnica de Babahoyo Los Ríos": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Carrera de Enfermería de la Universidad Técnica de Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Carrera Enfermería Universidad Técnica de Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Univ Tecn Babahoyo Extens Quevedo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+    "Univ Tecn Babahoyo": "UNIVERSIDAD TÉCNICA DE BABAHOYO",
+
+    # ===== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====
+    "Universidad Regional Autónoma de los Andes (UNIANDES Babahoyo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de Los Andes Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autonoma de los Andes (UNIANDES Babahoyo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes UNIANDES Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes UNIANDES Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+	   # ===== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====
+    "Regional Autonomous University of the Andes (UNIANDES Quevedo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Quevedo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de Los Ande Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Regional Autonomous Communities University of the Andes (UNIANDES Quevedo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Autónoma de los Andes (UNIANDES) Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Técnica de los Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes - Extension Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes – Extension Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de Los Andes - Uniandes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes UNIANDES Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+
+    # ===== UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ) =====
+    "Universidad Técnica del Estado de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO",
+    "Technical University of Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO",
+    "Universidade Técnica Estadual de Quevedo": "UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO",
+	    "UNIVERSIDAD REGIONAL AMAZONICA IKIAM": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónica Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Facultad de Ciencias de La Vida. Universidad Regional Amazónica Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónica - Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Ikiam - Universidad Regional Amazónica": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "IKIAM-Universidad Regional Amazónica": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónicaikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazonica Ikiam Parroquia Muyuna": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "IKIAM - Universidad Regional Amazonica": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónica -Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazônica IKIAM": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónica (IKIAM)": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Amazon Regional University Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazónica –IKIAM": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Universidad Regional Amazonica": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Univ Reg Amazonica Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+    "Univ Reg Amazon Ikiam": "UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM",
+	    "Universidad Particular de Especialidades Espíritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espíritu Santo (UEES)": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espíritu Santo (UEES)": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espiritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espíritu Santo UEES": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espíritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espíritu Santo – Samborondón": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espíritu Santo. Sam-borondón": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espíritu Santo -UEES": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espíritu Santo “UEES”": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad de Especialidades Espritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espiritu Santo (UEES)": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Espiritu Santo University": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Holy Spirit University (Universidad Espíritu Santo)": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espíritu Santo (Holy Spirit University)": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "The Espiritu Santo University": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Univ Especialidades Espiritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Tecnol Univ Espiritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Univ Espiritu Santo": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Espiritu Santos – UEES": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+
+    # ===== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====
+    "Regional Autonomous University of the Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Regional Autonomous University of the Andes (UNIANDES Santo Domingo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Santo Domingo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de Los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Autónoma de los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Universidad Regional Autónoma de los Andes - Extension Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes UNIANDES Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Autonoma Los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes UNIANDES Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES",
+
+    # ===== UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE) =====
+    "Universidad de las Fuerzas Armadas ESPE - Extensión Santo Domingo": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Univ Fuerzas Armadas ESPE Santo Domingo": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE) =====
+    "Universidad Tecnológica Equinoccial. Extensión Santo Domingo": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Univ Tecnol Equinoccial Santo Domingo": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+	  # ===== UNIVERSIDAD TÉCNICA DE AMBATO =====
+    "Technical University of Ambato": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Technical University of Ambato (UTA)": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "The Technical University of Ambato": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Campus Querochaca. Technical University of Ambato": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Technical University of Ambato. Av. Los Chasquis & Río Payamino": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Technical University of Ambato. Cevallos": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Ambato Technical University": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Medicine. Ambato's Technical University": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Ambato's Technical University": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Tech Univ Ambato": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+    "Techcal University of Ambato": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+
+    # ===== UNIVERSIDAD TÉCNICA DE MACHALA =====
+    "Technical University of Machala": "UNIVERSIDAD TÉCNICA DE MACHALA (UTMACH)",
+    "Technical University of Machala (UTMACH)": "UNIVERSIDAD TÉCNICA DE MACHALA (UTMACH)",
+    "Machala University of Technology": "UNIVERSIDAD TÉCNICA DE MACHALA (UTMACH)",
+    "Tech Univ Machala": "UNIVERSIDAD TÉCNICA DE MACHALA (UTMACH)",
+    "University Technician of Machala": "UNIVERSIDAD TÉCNICA DE MACHALA (UTMACH)",
+
+    # ===== UNIVERSIDAD TÉCNICA DE COTOPAXI =====
+    "Technical University of Cotopaxi": "UNIVERSIDAD TÉCNICA DE COTOPAXI (UTC)",
+    "Technical University of Cotopaxi (UTC)": "UNIVERSIDAD TÉCNICA DE COTOPAXI (UTC)",
+    "University Technical of Cotopaxi": "UNIVERSIDAD TÉCNICA DE COTOPAXI (UTC)",
+    "Cotopaxi Technical University": "UNIVERSIDAD TÉCNICA DE COTOPAXI (UTC)",
+    "Cotopaxy Technical University": "UNIVERSIDAD TÉCNICA DE COTOPAXI (UTC)",
+
+    # ===== UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES =====
+    "Luis Vargas Torres Technical University of Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS",
+    "Technical University Luis Vargas Torres": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS",
+    "Techinal University “Luis Vargas Torres”": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS",
+
+    # ===== UNIVERSIDAD YACHAY TECH =====
+    "Universidad Yachai Tech": "UNIVERSIDAD YACHAY TECH",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA =====
+    "Technological University Indoamerica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+	    # ===== UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA =====
+    "UNIVERSIDAD TECNOLÓGICA INDOAMERICA": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnológica Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnológica Indoamérica (UTI)": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnologica Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnologica Indoamerica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "UniversidadTecnológica Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnologica Indoamerica–Quito": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnologica Indoamérica – Quito": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnológica Indoamé Rica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnológica Indoamérica: Ingeniería en Biodiversidad y Recursos Genéticos": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Universidad Tecnologica Indoamer": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Univ Tecnol Indoamer Ambato": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Univ Tecnol Indoamer": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+    "Ingeniero. Docente en la Universidad Tecnológica Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL =====
+    "Universidad Tecnológica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Tecnológica Equinoccial University": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnologica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Universidad Universidad Tecnológica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnoló Gica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnolõgica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Universidad Tecnoloógica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Univ Tecnol Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Univ Tecnolog Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Univ Tecno Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Ingeniera de Alimentos-Universidad Tecnológica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Facultad de Ciencias de la Salud Eugenio Espejo–Universidad Tecnoligica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+    "Colombia and Universidad Tecnológica Equinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL =====
+    "Universidad Tecnológica Empresarial": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+    "Univ Tecnol Empresarial": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL (UTEG)",
+	"Univ Tecnologquinoccial": "UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL (UTE)",
+	"Universidad De Especialidades Turisticas": "UNIVERSIDAD DE ESPECIALIDADES TURÍSTICAS (UDET)",
+"Universidad de Especialidades Turísticas": "UNIVERSIDAD DE ESPECIALIDADES TURÍSTICAS (UDET)",
+"Univ Especial Turist UDET": "UNIVERSIDAD DE ESPECIALIDADES TURÍSTICAS (UDET)",
+"Univ Especialidades Turist": "UNIVERSIDAD DE ESPECIALIDADES TURÍSTICAS (UDET)",
+"Univ Especialidades": "UNIVERSIDAD DE ESPECIALIDADES TURÍSTICAS (UDET)",
+"University of Otavalo": "UNIVERSIDAD DE OTAVALO",
+"Universidad de Otavalo": "UNIVERSIDAD DE OTAVALO",
+"Univ Otavalo": "UNIVERSIDAD DE OTAVALO",
+"Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de los Andes UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes – UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Autónoma Regional de Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Regional Autonomous University of the Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Regional Autonomous University of Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Autonomous Regional University of the Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Autonomous Regional University of Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes Tulcán": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes Ambato": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes Puyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de los Andes Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Regional Autónoma de Los Andes “UNIANDES”": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Reg Autonoma Andes UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Reg Autonoma Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Autonoma Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Regional Autonoma Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Reg Autonoma Andes UNIANDES Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Reg Autonoma Los Andes Tulcan": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Univ Reg Autonoma Los Andes Ambato": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+"Universidad Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA (UTI)",
+"Ginecología Universidad Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA (UTI)",
+"Universidad Indoamérica. Machala y Sabanilla": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA (UTI)",
+"Universidad Tecnólogica Indoamérica": "UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA (UTI)",
+
     
     # Entrada original actualizada
     "State University of Milagro": "Universidad Estatal de Milagro (UNEMI)",
@@ -2930,36 +4295,2714 @@ MANUAL_REPLACE = {
     "La Universidad Politécnica Salesiana": "Universidad Politécnica Salesiana",
     "Univ Politrcn Salesiana Ecuador": "Universidad Politécnica Salesiana",
     
+	
+	
+
+    # ——— Estados Unidos ———
+     "universidad internacional del ecuador uide": "Universidad Internacional del Ecuador (UIDE)",
+    "international university of ecuador": "Universidad Internacional del Ecuador (UIDE)",
+    "uide international university of ecuador": "Universidad Internacional del Ecuador (UIDE)",
+    "universidad internacional del ecuador - uide": "Universidad Internacional del Ecuador (UIDE)",
+    "universidad internacional del ecuador: escuela de gestión ambiental": "Universidad Internacional del Ecuador (UIDE)",
+    "universidad internacional del ecuador escuela de medicina": "Universidad Internacional del Ecuador (UIDE)",
+
+    "universidad particular de especialidades espíritu santo – ecuador": "Universidad Espíritu Santo (UEES)",
+    "universidad particular de especialidades espíritu santo-ecuador": "Universidad Espíritu Santo (UEES)",
+    "universidad particular de especialidades espíritu santo — ecuador": "Universidad Espíritu Santo (UEES)",
+    "invitado de la universidad particular de especialidades espíritu santo del ecuador": "Universidad Espíritu Santo (UEES)",
+
+    "universidad catolica de cuenca ecuador": "Universidad Católica de Cuenca",
+    "universidad técnica particular de loja loja ecuador": "Universidad Técnica Particular de Loja",
+    "universidad técnica particular de loja ecuador": "Universidad Técnica Particular de Loja",
+
+    "escuela superior politecnica del litoral espol-espol (ecuador)": "Escuela Superior Politécnica del Litoral (ESPOL)",
+    "escuela superior politecnica del litoral espol ecuador": "Escuela Superior Politécnica del Litoral (ESPOL)",
+    "escuela superior politécnica de chimborazo-ecuador. (espoch)": "Escuela Superior Politécnica de Chimborazo (ESPOCH)",
+    "escuela politécnica nacional (epn) (ecuador)": "Escuela Politécnica Nacional (EPN)",
+    "escuela politécnica nacional (epn) del ecuador": "Escuela Politécnica Nacional (EPN)",
+    "escuela politécnica superior de ecuador": "Escuela Politécnica Nacional (EPN)",  # asumiendo que se refieren a EPN
+
+    "universidad politécnica estatal del carchi-ecuador": "Universidad Politécnica Estatal del Carchi (UPEC)",
+    "universidad nacional de chimborazo-ecuador": "Universidad Nacional de Chimborazo (UNACH)",
+    "universidad técnica de ambato (uta)ecuador": "Universidad Técnica de Ambato (UTA)",
+
+    "university of the arts of ecuador": "Universidad de las Artes",
+    "universidad de las artes del ecuador": "Universidad de las Artes",
+
+    "university of ecotec (ecuador)": "Universidad Tecnológica ECOTEC",
+    "university of ecuador": "Universidad del Ecuador",  # si prefieres dejarla sin usar, cámbiala a None
+
+    "universidad central del ecuadormm": "Universidad Central del Ecuador",
+    "metropolitan university of ecuador": "Universidad Metropolitana del Ecuador",
+    "universidad metropolitana del ecuadorr": "Universidad Metropolitana del Ecuador",
+    "convenio universidad metropolitana del ecuador": "Universidad Metropolitana del Ecuador",
+    "convenio universidad metropolitana del ecuador-universidad de cienfuegos “carlos rafael rodríguez”": "Universidad Metropolitana del Ecuador",
+
+    "universidad ute ecuador": "Universidad UTE",
+
+    "universidad de las americas. ecuador": "Universidad de Las Américas (UDLA)",
+    "universidad de las americas. udla. campus colón. +593958916317 cp 170523 quito-ecuador": "Universidad de Las Américas (UDLA)",
+    "universidad de las americas and ecuadorian political economy lab": "Universidad de Las Américas (UDLA)",
+
+    "escuela superior politecnica de chimborazo-ecuador. (espoch)": "Escuela Superior Politécnica de Chimborazo (ESPOCH)",
+
+    "university of azuay (ecuador)": "Universidad del Azuay",
+    "universidad de cuenca – ecuador": "Universidad de Cuenca",
+
+    "universidad particular internacional sek ecuador": "Universidad Internacional SEK",
+    "universidad particular internacional sek (ecuador)": "Universidad Internacional SEK",
+
+    # Si alguna entrada quieres **excluir** (no-universidad), puedes mapearla a None o a su entidad base:
+    "ministerio de salud pública de ecuador": "Ministerio de Salud Pública del Ecuador",
+    "ministerio de educación del ecuador": "Ministerio de Educación del Ecuador",
+    "ministry of education of ecuador": "Ministerio de Educación del Ecuador",
+    "ministerio de educación y cultura del ecuador": "Ministerio de Educación y Cultura del Ecuador",
+    "ministerio del ambiente agua y transición ecológica de ecuador": "Ministerio del Ambiente, Agua y Transición Ecológica (Ecuador)",
+    "ministry of public health of ecuador": "Ministerio de Salud Pública del Ecuador",
+    "ministerio de agricultura y ganadería - ecuador": "Ministerio de Agricultura y Ganadería (Ecuador)",
+    "ministry of foreign trade of ecuador": "Ministerio de Producción, Comercio Exterior, Inversiones y Pesca (Ecuador)",
+
+    "ecuador": "Ecuador",
+    "avenida ecuador 3493": "Ecuador",
+    "ecuador association": "Ecuador Association",
+
+    "policía nacional del ecuador": "Policía Nacional del Ecuador",
+    "servicio de rentas internas ecuador": "Servicio de Rentas Internas (SRI)",
+    "servicio nacional de aduana del ecuador (senae)": "Servicio Nacional de Aduana del Ecuador (SENAE)",
+    "banco central del ecuador": "Banco Central del Ecuador",
+    "corporación eléctrica del ecuador": "Corporación Eléctrica del Ecuador (CELEC EP)",
+    "la corporación eléctrica del ecuador (celec ep)": "Corporación Eléctrica del Ecuador (CELEC EP)",
+    "corporación eléctrica del ecuador celec ep": "Corporación Eléctrica del Ecuador (CELEC EP)",
+    "ep petroecuador": "EP Petroecuador",
+    "andes petroleum ecuador ltd": "Andes Petroleum Ecuador Ltd",
+    "ecuadorian consortium of telecommunications s.a (conecel)": "CONECEL (Claro Ecuador)",
+
+    "instituto geográfico militar de ecuador igm-ec": "Instituto Geográfico Militar del Ecuador (IGM)",
+    "instituto geográfico militar de ecuador": "Instituto Geográfico Militar del Ecuador (IGM)",
+    "geographic military institute of ecuador": "Instituto Geográfico Militar del Ecuador (IGM)",
+
+    "instituto nacional de meteorología e hidrología de ecuador (inamhi)": "INAMHI",
+    "instituto oceanográfico y antártico de la armada del ecuador– inocar": "INOCAR",
+    "instituto oceanográfico y antártico de la armada del ecuador": "INOCAR",
+
+    "ecuadorian national institute for statistics and census (inec)": "INEC",
+    "ecuadorian national service for risk and emergency management (sngre)": "SNGRE",
+
+    "universidad pontificia católica del ecuador sede esmeraldas": "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Esmeraldas",
+    "pontificia universidad católica ecuador-sede ibarra": "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Ibarra",
+    "pontificia universidad catolica del ecuador ibarra": "Pontificia Universidad Católica del Ecuador (PUCE) - Sede Ibarra",
+    # --- PUCE (Pontificia Universidad Católica del Ecuador) ---
+    "Pontificia Universidad Catolica Del Ecuador of Valencia": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Pontificia Universidad Catolica Del Ecuador of Santiago de Chile": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Portugal": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of the Most Holy Conception": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador “Nuestra Señora de la Asunción”": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador (PUniversidad Central Del Ecuador) – Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catòlica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católicadel Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ. Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito-Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cátolica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifi cia Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador PGY1": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador In Ruzomberok": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Leuven": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Murcia": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontíficia Pontificia Universidad Catolica Del Ecuador – Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ruzomberok": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Korea": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Daegu": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Ávila": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of the Maule": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Louvain": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador in Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of the North": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of North": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Santa Maria": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador–Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",  # por ubicación
+
+    # --- UCE (Universidad Central del Ecuador) ---
+    "Universidad Central Del Ecuador de Ecuador (Universidad Central Del Ecuador)": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Facultad de Ciencias Agrícolas": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "University Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Campus PUniversidad Central Del Ecuador Nayón": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # --- UTM (Universidad Técnica de Manabí) ---
+    "Universidad Tecnica De Manabi Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # --- UIDE (Universidad Internacional del Ecuador) ---
+    "Universidad Internacional del Ecuador Powe-red by Arizona State University": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Postgraduate Course in Orthopedics and Traumatology at the International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional de Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # --- UEES (Universidad Espíritu Santo) ---
+    "Universidad Particular de Especialidades Espíritu Santo–Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Particular de Especialidades Espíritu Santo. Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Particular de Especialidades Espíritu SantoEcuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+
+    # --- UMET (Universidad Metropolitana del Ecuador) ---
+    "Universidad Metropolitana del Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+
+    # --- UNACH (Universidad Nacional de Chimborazo) ---
+    "Universidad Nacional De Chimborazo. Ecuador": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # --- UTB (Universidad Técnica de Babahoyo) ---
+    "Universidad Técnica de Babahoyo (UTB) Ecuador": "UNIVERSIDAD TECNICA DE BABAHOYO",
+
+    # --- UTMachala (Universidad Técnica de Machala) ---
+    "Universidad Técnica de Machala (UTMACH) - Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH). República del Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH)-Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+
+    # --- EPN (Escuela Politécnica Nacional) ---
+    "Escuela Politécnica Nacional (EPN) of Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) del Ecuador": "ESCUELA POLITECNICA NACIONAL",
+
+    # --- UPEC (Universidad Politécnica Estatal del Carchi) ---
+    "Universidad Politécnica Estatal del Carchi (Ecuador)": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+
+    # --- UTPL (Universidad Técnica Particular de Loja) ---
+    "Universidad Técnica Particular de Loja-Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # --- UDLA (Universidad de Las Américas) ---
+    "University of Las Américas Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Quito-Ecuador & Universidad De Las Americas": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas del Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas de Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas—Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # --- UTE (Universidad UTE) ---
+    "Universidad UTE (Cochrane Ecuador)": "UNIVERSIDAD UTE",
+
+    # --- UCSG (Universidad Católica de Santiago de Guayaquil) ---
+    "Universidad Catolica De Santiago De Guayaquil. Guayaquil. Ecuador": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # --- USFQ (Universidad San Francisco de Quito) ---
+    "Universidad San Francisco de Quito (USFQ) (Ecuador)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # --- UAE (Universidad Agraria del Ecuador) ---
+    "Universidad Agraria Del Ecuador (UAE": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agraria Del Ecuador UAE": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agraria Del Ecuador de Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+
+    # --- UNIBE (Universidad Iberoamericana del Ecuador) ---
+    "UNIBE Universidad Iberoamericana del Ecuador": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+
+    # --- SEK (Universidad Internacional SEK) ---
+    "Universidad Particular Internacional SEK Ecuador": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "Universidad Particular Internacional SEK (Ecuador)": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # --- UPS (Universidad Politécnica Salesiana) ---
+    "University Politecnic Salesian of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana of Quito-Ecuador Engineer Systems": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # --- U. de Guayaquil (pública) ---
+    "Universidad De Guayaquil. República del Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # --- U. Católica de Cuenca (privada) ---
+    "Universidad Catolica De Cuenca (Ecuador)": "UNIVERSIDAD CATOLICA DE CUENCA",
+
+    # --- UNAE (pública) ---
+    "Universidad Nacional de Educación UNAE of Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE-Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+	    # ===== PUCE (Pontificia Universidad Católica del Ecuador) =====
+    "Instituto de Salud Pública Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad CatA³lica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Department of Neurology. Hospital Carlos Andrade Marín. Quito. Pontificia Universidad Catolica Del Ecuador. Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador—Sede Manabí (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Fu Jen Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "EscuelaÂ deÂ CienciasÂ AgrícolasÂ yÂ AmbientalesÂ (ECAA)Â PontificiaÂ UniversidadÂ CatólicaÂ delÂ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catòlica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ. Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolicadel Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica of Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Escuela de Ciencias Biológicas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Facultad de Ciencias Naturales y Exactas Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Leuven at Campus Brussels": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",  # sede GYE -> UCSG
+    "Pontificia Universidad Catolica Del Ecuador – PUniversidad Central Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador of Ecuador (PUniversidad Central Del Ecuador)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador - Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catόlica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cato Lica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catí3lica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catoílica del EcUador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito-Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Católica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Pontificia Católica de Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Universidad Católica de Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UCE (Universidad Central del Ecuador) =====
+    "Universidad Centra del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Ecuador Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Faculty of Medical Sciences at Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Dental School": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Medical Science School-Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad de Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador (Universidad Central Del Ecuador-GIIP": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    # (OJO: todas las variantes con “Marta/Martha Abreu”, “Las Villas”, “de Venezuela/UCV”, “Chile”, etc. se EXCLUYEN por ser extranjeras)
+
+    # ===== EPN =====
+    "Escuela Politécnica Nacional (EPN) de Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) del Ecuador (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Ecuador (EPN)": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== ESPOL =====
+    "Escuela Superior Politecnica Del Litoral Espol Ecuador (ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL espol",
+
+    # ===== ESPOCH =====
+    "Escuela Superior Politecnica De Chimborazo-Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica del Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",  # asumiendo referencia genérica a ESPOCH
+
+    # ===== UTM (Universidad Técnica de Manabí) =====
+    "Universidad Tecnica De Manabi en Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Académico de la Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad de Manabí Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # ===== UTMACH (Universidad Técnica de Machala) =====
+    "Carrera de Economía de la UTMACH Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+
+    # ===== UTA (Universidad Técnica de Ambato) =====
+    "Universidad Técnica de Ambato (UTA) Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Electronic and Industrial Engineering Universidad Técnica de Ambato (UTA) Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+
+    # ===== ULEAM =====
+    "Universidad Laica Eloy Alfaro De Manabi-Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+
+    # ===== UIDE =====
+    "Universidad International del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "The International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Escuela de Informática y Multimedia": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "UIDE Universidad Internacional del Ecuador (Quito Headquarters)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UDLA =====
+    "Universidad De Las Americas (Ecuador)": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas – Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas - Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===== UCSG =====
+    "Universidad Catolica De Santiago De Guayaquil (Ecuador)": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # ===== UIDE vs. “Universidad Internacional El Ecuador” (forma antigua/errónea) =====
+    "Universidad Internacional El Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UPS (Universidad Politécnica Salesiana) =====
+    "Salesian Polythecnic University of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===== UTE (Universidad UTE) =====
+    "Equinoctial Technological University of Ecuador": "UNIVERSIDAD UTE",
+
+    # ===== UNACH =====
+    "Universidad Nacional De Chimborazo (Ecuador)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo y Ecuador": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # ===== UCuenca =====
+    "Universidad De Cuenca-Ecuador": "UNIVERSIDAD DE CUENCA",
+
+    # ===== UGuayaquil =====
+    "Universidad De Guayaquil (Ecuador)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil en Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # ===== UTPL =====
+    "Universidad Técnica Particular de Loja (Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # ===== SEK =====
+    "Universidad Particular Internacional SEK del Ecuador": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # ===== UNIANDES =====
+    "Universidad Regional Autónoma de los Andes of Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+
+    # ===== UMET =====
+    "Universidad Metropolitana del Ecuador para la Educación y el Trabajo": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador UMET": "UNIVERSIDAD METROPOLITANA",
+
+    # ===== UEES =====
+    "Universidad Particular de Especialidades Espíritu Santo Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Espfritu Santo-Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Spíritu Santo - Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+
+    # ===== EPN recap (otras variantes) =====
+    "Escuela Politécnica Nacional (EPN) del Ecuador": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== ESPOL recap (otras variantes) =====
+    "Escuela Superior Politécnica del Ecuador": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL espol",  # si se refiere a ESPOL genéricamente
+
+ "Pontificia Universidad Catolica Del Ecuador Manabí Headquarters": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Esmeraldas Headquarters": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "‘Pontificia Universidad Catolica Del Ecuador (PUniversidad Central Del Ecuador)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Facultad de Arquitectura Diseno y Artes": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Cat-olica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "PGY3 Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "PGY2 Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede en Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica del-Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univeridad Católica del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador in Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UCE =====
+    "Universidad Central Del EcuadorM": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Riobamba": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador-Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Facultad de Ingeniería Química-Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Herbario Alfredo Paredes QAP-Universidad Central Del Ecuador- Sección Micológica": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Herbario Alfredo Paredes": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Biomedical Center of the Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Centro de Transferencias y Desarrollo de Tecnologias CTT-Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador Posgrado de Urologia": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador. Concentración": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Universidad Central Del Ecuador (UC)": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # ===== ESPOL =====
+    "Escuela Superior Politecnica del Ecuador": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL espol",
+
+    # ===== UPS =====
+    "Universidad Politécnica Salesiana Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Universidad Politécnica Salesiana-Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "Salesian Polythecnic University of Ecuador": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===== UTM (Manabí) =====
+    "Académico de la Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # ===== UTMACH (Machala) =====
+    "Carrera de Economía de la UTMACH Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+
+    # ===== UTA (Ambato) =====
+    "Universidad Técnica de Ambato (UTA) Ecuador": "UNIVERSIDAD TECNICA DE AMBATO",
+
+    # ===== ULEAM =====
+    "Universidad Laica Eloy Alfaro De Manabi Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+
+    # ===== UIDE =====
+    "Universidad Internacional del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "UniversidadInternacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Quito-Ecuador and Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "PGY4 Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Ecuador Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UDLA =====
+    "Universidad De Las Americas Quito-Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas – Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas - Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Univ Las Amer Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===== UTE (antes UTEQ !=) =====
+    "Universidad Tecnológica Equinoccial (Ecuador)": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial del Ecuador": "UNIVERSIDAD UTE",
+    "Centro de Investigación en Salud Pública y Epidemiología Clínica (CISPEC). Universidad Tecnológica Equinoccial. Quito (Ecuador)": "UNIVERSIDAD UTE",
+    "UTE Ecuador": "UNIVERSIDAD UTE",
+
+    # ===== UCuenca =====
+    "Universidad De Cuenca Ecuador": "UNIVERSIDAD DE CUENCA",
+
+    # ===== UGuayaquil =====
+    "Universidad De Guayaquil-Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # ===== UAE (Agraria) =====
+    "Universidad De Guayaquil-Universidad Agraria Del Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agraria Del Ecuador La Molina": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Universidad Agraria Del Ecuador?. Av. 25 de Julio. Guayaquil": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+
+    # ===== UNL =====
+    "Universidad Nacional de Loja-Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    # ===== UNAE =====
+    "Universidad Nacional de Educación UNAE del Ecuador UNAE": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Ecuador Universidad Nacional de Educación UNAE": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+
+    # ===== UNIANDES =====
+    "Univ Reg Autonoma Andes St Domingo Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Ibarra Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Los Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+
+    # ===== UMET =====
+    "Universidad Metropolitana del Ecuador Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Univ Ecuador UMET": "UNIVERSIDAD METROPOLITANA",
+
+    # ===== UCSG =====
+    "Universidad Catolica De Santiago De Guayaquil. Ecuador": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica De Santiago De Guayaquil (Ecuador": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # ===== UIBERO (UNIBE) =====
+    "Universidad Iberoamericana del Ecuador UNIB.E": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+    "Universidad Iberoamericana del Ecuador (UNIBE)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+
+    # ===== SEK =====
+    "Universidad Particular Internacional SEK—Ecuador": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # ===== UEES =====
+    "Universidad Particular de Especialidades Espíritu Santo and Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Particular de Especialidades Espíritu Santo — Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+    "Universidad Particular de Especialidades Espíritu Santo– Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPIRITU SANTO",
+
+    # ===== USFQ =====
+    "Universidad San Francisco de Quito (USFQ) and Critical Geography Collective of Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # ===== FLACSO / IAEN =====
+    "Facultad Latinoamericana De Ciencias Sociales-Ecuador": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES",
+    "Facultad Latinoamericana De Ciencias Sociales Sede Ecuador": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES",
+    "Inst Altos Estudios Nacl Ecuador IAEN": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+    "Instituto De Altos Estudios Nacionales Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+
+    # ===== UTPL =====
+    "UTPL Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # ===== UAZUAY =====
+    "University of Azuay-Cuenca-Ecuador": "UNIVERSIDAD DEL AZUAY",
+
+    # ===== UTI =====
+    "Universidad Tecnológica Indoamérica (UTI) Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+
+
+   # ===== UCE (Universidad Central del Ecuador) =====
+    "Univ Cent Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ Cent Ecuador Quito ECUADOR": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Cent Univ Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ Cent Ecuador Universidad Central Del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ Ctr Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # ===== PUCE (Pontificia Universidad Católica del Ecuador) =====
+    "Pontificia Universidad Catolica Del Ecuador Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Equador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontif Catholic Univ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Pontificia Catolica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catol Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifical Catholic Univ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Pontificia Catolica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catolica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catol Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catoloca Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Univ Catalica Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontif Univ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontif Univ Catol Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Santo Domin": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Univ Catolica Ecuador Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catolica Ecuador Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UIDE (Universidad Internacional del Ecuador) =====
+    "Univ Int Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Univ Internac Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Univ Int Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Int Univ Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "International Univeristy of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UDLA (Universidad de Las Américas) =====
+    "Universidad De Las Americas Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Univ Las Amer Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===== UMET (Universidad Metropolitana del Ecuador) =====
+    "Universidad Metropolitana del Ecuador Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador Extens Machala": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador UMET": "UNIVERSIDAD METROPOLITANA",
+    "UMET Universidad Metropolitana del Ecuador Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ciencias Educ": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador de Ciencias de la Educacion (UMCE)": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Barranquilla": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador Univ Cienfuegos Carlos": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana del Ecuador Ecuador": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana del Ecuador Univ Cienfuegos": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana del Ecuador Ecuador Univ Cienfueg": "UNIVERSIDAD METROPOLITANA",
+    "Convenio Universidad Metropolitana del Ecuador Ecuador Univ Cienfuegos": "UNIVERSIDAD METROPOLITANA",
+
+    # ===== UNIANDES (Universidad Regional Autónoma de los Andes) =====
+    "Universidad Regional Autónoma de los Andes Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Quevedo Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Riobamba Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Los Andes Tulcan Ecuador": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+
+    # ===== ULEAM =====
+    "Universidad Estatal del Sur de Manabí Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+
+    # ===== UTN =====
+    "Universidad Técnica del Norte (UTN) Ecuador": "UNIVERSIDAD TECNICA DEL NORTE",
+
+    # ===== ECOTEC =====
+    "Universidad Tecnológica ECOTEC Ecuador": "UNIVERSIDAD TECNOLOGICA ECOTEC",
+
+    # ===== Universidad del Azuay =====
+    "University of Azuay Ecuador": "UNIVERSIDAD DEL AZUAY",
+
+    # ===== Universidad de las Artes =====
+    "Universidad De Las Artes Ecuador": "UNIVERSIDAD DE LAS ARTES",
+    "Universidad De Las Artes Ecuador UARTES": "UNIVERSIDAD DE LAS ARTES",
+
+    # ===== Universidad de los Hemisferios =====
+    "Universidad De Los Hemisferios Ecuador": "UNIVERSIDAD DE LOS HEMISFERIOS",
+
+    # ===== Universidad Bolivariana del Ecuador =====
+    "Universidad Bolivariana Del Ecuador Ecuador": "UNIVERSIDAD BOLIVARIANA DEL ECUADOR",
+    "Universidad Bolivariana Del Ecuador Ecuador UBE": "UNIVERSIDAD BOLIVARIANA DEL ECUADOR",
+
+    # ===== Universidad Iberoamericana del Ecuador =====
+    "Univ Iberoamer Ecuador": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR",
+
+    # ===== Universidad Agraria del Ecuador =====
+    "Univ Agraria Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Univ Agr Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Univ Agr Ecuador UAE": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+    "Agr Univ Ecuador": "UNIVERSIDAD AGRARIA DEL ECUADOR",
+
+    # ===== ESPOCH (Escuela Superior Politécnica de Chimborazo) =====
+    "Escuela Superior Politecnica De Chimborazo Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Super Politecnica De Chimborazo Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Super Chimborazo Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+
+    # ===== EPN (Escuela Politécnica Nacional) =====
+    "Escuela Politecn Nacl Ecuador": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== ESPE (Universidad de las Fuerzas Armadas) =====
+    "ESPE Ecuador": "UNIVERSIDAD DE LAS FUERZAS ARMADAS ( ESPE )",
+    "Univ Fuerzas Armadas Ecuador": "UNIVERSIDAD DE LAS FUERZAS ARMADAS ( ESPE )",
+
+    # ===== UTPL (Universidad Técnica Particular de Loja) =====
+    "Univ Tecn Particular Loj Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "UTPL Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # ===== UTE (Universidad UTE) =====
+    "UTE Ecuador": "UNIVERSIDAD UTE",
+
+    # ===== Universidad San Gregorio de Portoviejo =====
+    "Universidad Particular San Gregorio de Portoviejo Ecuador": "UNIVERSIDAD PARTICULAR SAN GREGORIO DE PORTOVIEJO",
+    "Universidad Particular San Gregorio de Portoviejo Manabi Ecuador": "UNIVERSIDAD PARTICULAR SAN GREGORIO DE PORTOVIEJO",
+
+    # ===== Universidad del Pacífico Escuela de Negocios =====
+    "Universidad del Pacífico Escuela de Negocios Ecuador": "UNIVERSIDAD DEL PACIFICO ESCUELA DE NEGOCIOS",
+	  "Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil (UG)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ. de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidade de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "UG Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil en Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil (Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad DeGuayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad. de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "University of Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Tecnological Business Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Technological Business Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Technological and Business Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Zoot. Univ. Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil. Ciudadela Universitaria Salvador Allende": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil. Universitaria Salvador Allende": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil. \"Salvador Allende\" University Citadel": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil. Cdla. Universitaria Salvador Allende": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil campus Mapasingue": "UNIVERSIDAD DE GUAYAQUIL",
+    "De la Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil-Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil Republ Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil (UTEG)": "UNIVERSIDAD DE GUAYAQUIL",  # etiqueta errónea con UTEG
+    "Universidad De Guayaquil / RedGIA": "UNIVERSIDAD DE GUAYAQUIL",
+    "Galápagos National Park & Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Hospital Universitario de Guayaquil de la Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Docente de la Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Professor of the Universidad Tecnologica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",  # (no U. de GYE)
+
+    # facultades/escuelas (mismo canónico)
+    "Carrera de Enfermeria Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Facultad de Ciencias Químicas. Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Facultad de Ciencias Médicas. Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad De Guayaquil-Facultad de Ciencias Económicas": "UNIVERSIDAD DE GUAYAQUIL",
+    "Sistemas de Calidad de la Universidad De Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Holy Spirit Universidad De Guayaquil Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # ===== UCSG — UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL (privada) =====
+    "Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica De Santiago De Guayaquil (UCSG)": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica De Santiago De Guayaquil – UCSG": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica De Santiago De Guayaquil. Guayaquil. Ecuador": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Guayaquil. Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad de Católica de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catoìlica Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "University Catholic Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Santiago Guayaquil Catholic Univ": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Catholic Univ Santiago Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Santiago Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catol Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universdad Catolica Santiago Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "The Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "De Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Pontificia Universidad Catolica Del Ecuador Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",  # es UCSG, no PUCE
+    "Pontificia Universidad Catolica Del Ecuador Santiago of Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # unidades/posgrados/áreas (mismo canónico)
+    "Universidad Catolica De Santiago De Guayaquil Carrera de Odontología": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Department of Medicine and Epidemiology Universidad Catolica Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Escuela de Medicina Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Carrera de Medicina Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Dermatología de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Sistema de Posgrado de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Economía y Finanzas de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Administrativas de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Visiting Professor and Researcher at the Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Investigadora de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Doctor en Educación. Docente Investigador de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Doctora en Educación. Vicerrectora de Vinculación de la Universidad Catolica De Santiago De Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # ===== UTEG — UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL (privada) =====
+    "Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnologica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil (UTEG)": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil-UTEG": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil: Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil UTEG": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Univ Tecnol Empresarial Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Univ Tecnol Empresarial Guayaquil UTEG": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial del Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Redes de Datos de la Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Doctora en Planificación y Gestión del Desarrollo Regional. Directora de Investigación en la Facultad de Posgrado e Investigación de la Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+    "Doctora en Gestión Económica Global. Doctora en Ciencias de Gestión. Rectora de la Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLOGICA EMPRESARIAL DE GUAYAQUIL",
+
+    # ===== ULVR — UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL (privada) =====
+    "Universidad Laica Vicente Rocafuerte de Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    # (la “Universidad Santiago de Guayaquil” suele ser un error por UCSG; la normalizo a UCSG)
+    "Universidad Santiago de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Santiago Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad de Católica de Guayaquil": "UNIVERSIDAD CATOLICA DE SANTIAGO DE GUAYAQUIL",
+	    # ===== U. DE CUENCA (pública) =====
+    "Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Univ. of Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca. Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca School of Medicine": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca & Facultad Latinoamericana De Ciencias Sociales": "UNIVERSIDAD DE CUENCA",
+    "Universidad De CuencaDepartamento de Espacio Y": "UNIVERSIDAD DE CUENCA",
+    "Electronics and Telecommunications Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca (University de Cuenca)": "UNIVERSIDAD DE CUENCA",
+    "Facultad de Ciencias Químicas Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca (Universidad De Cuenca)": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca (UCuenca)": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca – Ecuador": "UNIVERSIDAD DE CUENCA",
+    "Grupo CATOx – Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Profesora de la Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca-Ecuador": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca (UC)": "UNIVERSIDAD DE CUENCA",
+    "Pharmacy of Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca (CEA)": "UNIVERSIDAD DE CUENCA",
+    "Electrónica y Telecomunicaciones (DEET) – Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Univesidad de Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca & FLACSO": "UNIVERSIDAD DE CUENCA",
+    "Universidad of Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca. Av. 12 de Abril s/n. Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca at Campus Paraíso": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca at Campus Yanuncay": "UNIVERSIDAD DE CUENCA",
+    "Electrónica y de Telecomunicaciones de la Universidad De Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Universidad De Cuenca Ecuador": "UNIVERSIDAD DE CUENCA",
+    "Hospital Universitario de Cuenca": "UNIVERSIDAD DE CUENCA",  # hospital universitario de la U. de Cuenca
+    "Univ Estatal Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Cuenca State University": "UNIVERSIDAD DE CUENCA",
+    "University Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Niversidad Cuenca": "UNIVERSIDAD DE CUENCA",
+    "Cuenca Univ": "UNIVERSIDAD DE CUENCA",
+
+    # ===== UCACUE — U. CATÓLICA DE CUENCA (privada) =====
+    "Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca Ecuador": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Hospital Universitario Católico de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univedad Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca-Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca (UCACUE)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Carrera de Ingeniería Ambienta de la Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca − CIITT": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Laboratory of Genetics and Molecular Biology of the Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología at the Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología (CIITT) at the Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Docente Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Innovación y Transferencia de Tecnología (CIITT) de la Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Univesidad Católica de Cuenca (UCACUE)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca sede Principal": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca (Ecuador)": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Unidad Académica de Administración en la Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Faculty of Dentistry. Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "University Catholic of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Catholic Univ. of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad de Católica de Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca Extensión Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Faculty of Clinical Psychology of Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca-Ecuador": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca- Extensión": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Católica Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "University Catholic of Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+
+    # ===== PUCE (solo si aparece explícito) =====
+    "Cuenca Pontificia Universidad Catolica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UNIVERSIDAD DEL AZUAY (privada) =====
+    "University of Azuay Cuenca": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay-Cuenca-Ecuador": "UNIVERSIDAD DEL AZUAY",
+	 "Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ. San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univ. San Francisco de Quito-USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Fransisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Franscisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco-Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "University San Francisco of Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "University of San Francisco Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "San Francisco of Quito University": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad de San Francisco Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (Ecuador)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidrad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francsico de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) School of Medicine": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Escuela de Odontologia Universidad San Francisco de Quito (USFQ) (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Escuela de Odontología Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Colegio de Ciencias e Ingenierías Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Environmental Engineering. Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) Medical School": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ). Hospital de los Valles": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) Av. Alsacio Northia": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (LEA-USFQ). Pámpite y Diego de Robles": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ) Cumbayá": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ). Pámpite y Diego de Robles": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Univer-sidad San Francisco de Quito USFQ": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ)SF": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ)-Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ)-University of North Carolina at Chapel Hill": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) and University of North Carolina at Chapel Hill": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) & University of North Carolina at Chapel Hill UNC": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) University of North Carolina at Chapel Hill UNC": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) and The University of North Carolina at Chapel Hill": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ) & University of North Carolina at Chapel Hill (UNC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ) & The University of North Carolina (UNC) at Chapel Hill": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) (USFQ) & UNC-Chapel Hill Galápagos Science Center (GSC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ)/Galapagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ)/Galápagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) and Galápagos Science Center": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Galapagos Sci. Ctr. Gsc (Univ. S. Francisco de Quito USFQ-Univ. of N. Carolina at Chapel Hill UNC)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "GAIAS University San Francisco of Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Universidad San Francisco de Quito (USFQ) and Critical Geography Collective of Ecuador": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Grupo de Química Computacional y Teórica (QCT-USFQ) and Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # ===== UCE — UNIVERSIDAD CENTRAL DEL ECUADOR =====
+    "Universidad Central Del Ecuador Quito": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+    "Univ Cent Ecuador Quito ECUADOR": "UNIVERSIDAD CENTRAL DEL ECUADOR",
+
+    # ===== PUCE — PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR =====
+    "la Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito-Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador (PUniversidad Central Del Ecuador) – Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catolica Ecuador Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catolica Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Univ Catholique Quito Equateur": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== EPN — ESCUELA POLITÉCNICA NACIONAL =====
+    "Escuela Politécnica Nacional (EPN) Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Facultad de Ciencias. Escuela Politécnica Nacional (EPN) (Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) de Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politecn Nacl Quito": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== UPS — UNIVERSIDAD POLITÉCNICA SALESIANA =====
+    "Universidad Politécnica Salesiana of Quito-Ecuador Engineer Systems": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "UPS-Quito": "UNIVERSIDAD POLITECNICA SALESIANA",
+    "UPS Quito": "UNIVERSIDAD POLITECNICA SALESIANA",
+
+    # ===== UDLA — UNIVERSIDAD DE LAS AMÉRICAS =====
+    "Universidad De Las Americas Quito": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas Quito-Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Universidad De Las Americas. UDLA. Campus Colón. +593958916317 CP 170523 Quito-Ecuador": "UNIVERSIDAD DE LAS AMERICAS",
+    "Quito-Ecuador & Universidad De Las Americas": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===== UIDE — UNIVERSIDAD INTERNACIONAL DEL ECUADOR =====
+    "UIDE Universidad Internacional del Ecuador (Quito Headquarters)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Quito-Ecuador and Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "UniversidadInternacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UTE — (antes U. Tecnológica Equinoccial) =====
+    "Universidad Tecnológica Equinoccial de Quito": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial. Quito (Ecuador)": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial de Quito (UTE)": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial de Quito (Ecuador)": "UNIVERSIDAD UTE",
+    "Univ Tecnol Equinoccial Quito": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial de Quito (UTE) Ecuador": "UNIVERSIDAD UTE",
+
+    # ===== UTI — UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA =====
+    "Universidad Tecnológica Indoamérica (UTI)–Quito": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamérica (UTI) Ecuador (Quito)": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+
+    # ===== UASB — UNIVERSIDAD ANDINA SIMÓN BOLÍVAR =====
+    "UASB Quito": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+
+    # ===== IAEN — INSTITUTO DE ALTOS ESTUDIOS NACIONALES =====
+    "Instituto De Altos Estudios Nacionales de Quito": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+
+    # (Opcional) alias genérico mal definido
+    "Universidad de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO",  # suele usarse como abreviatura imprecisa
+
+
+    # ===== UTPL — UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA (privada) =====
+    "Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "UTPL Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja – UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Loja Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (Ecuador)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (Ecuador": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "UniversidadTécnica Particular de Loja(UTPL)": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ. Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Téchnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técncia Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particula de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad T∅cnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Teicnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad T écnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Univ Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Tocnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universitad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universdiad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "versidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "23 Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Tecnica Particular de Loja University": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Técnica Particular de Loja University": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Private Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Private Universidad Técnica Particular de Loja (Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Privada de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",  # forma coloquial
+    "Universidad Técnica Particular del Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Particular Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "UTPL": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # Unidades/áreas (mismo canónico UTPL)
+    "Economics Department at Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Hospital Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Department of Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Sección de Genética Humana Microbiología y Bioquímica Clínica de la Universidad Técnica Particular de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. San Cayetano Alto": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja San Cayetano": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja and Gazcelle Partners": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Particular": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",
+
+    # Alias frecuentes de UTPL
+    "Universidad Católica de Loja": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",  # UTPL es católica y a veces se nombra así
+    "La Loja University": "UNIVERSIDAD TECNICA PARTICULAR DE LOJA",            # uso común en inglés para UTPL
+
+    # ===== UNL — UNIVERSIDAD NACIONAL DE LOJA (pública) =====
+    "Universidad Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja UNL": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja. Av Pio Jaramillo ciudadela universitaria": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Social y Administrativa de la Universidad Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Sociales y Económicas. Universidad Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja-Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ. Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National Univ. of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    # Ambiguos en inglés (por defecto al público UNL)
+    "University of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+	   # ===== UNIVERSIDAD ESTATAL AMAZÓNICA (UEA – Ecuador, Puyo) =====
+    "Universidad Estatal Amazónica": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amazónicaa": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad EstatalAmazó Nica": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amazónica Ecuador": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Puyo Estatal Amazon": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amaz&amp": "UNIVERSIDAD ESTATAL AMAZONICA",
+
+    # Casos con empresas/relaciones (mismo canónico UEA)
+    "Empresa Pública Amazónica UEA-EP": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Empresa Pública Amazónica UEA EP": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Empresa Pública Amazónica UEA-EP": "UNIVERSIDAD ESTATAL AMAZONICA",
+
+    # ===== UNIVERSIDAD REGIONAL AMAZÓNICA IKIAM =====
+    "Universidad Regional Amazónica Ikiam": "UNIVERSIDAD REGIONAL AMAZONICA IKIAM",
+    "Universidad Amazónica IKIAM": "UNIVERSIDAD REGIONAL AMAZONICA IKIAM",
+
+    # ===== ALIANZAS MIXTAS (mantener como UEA o IKIAM) =====
+    "Universidad Estatal Amazónica y Pontificia Universidad Catolica Del Ecuador": "UNIVERSIDAD ESTATAL AMAZONICA",
+
+    # ===== UTM — UNIVERSIDAD TÉCNICA DE MANABÍ =====
+    "Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Univ. Técnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "University Tecnica of Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "University Técnica of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi de Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técni-ca de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tècnica de Manabì": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad T cnica de Manab": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnicade Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tëcnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Té cnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad TEcnica de Manabî": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Técnica de Manabĺ": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica de Manabf": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tcnica de Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabì": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical University of Manabf (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Technical Manabí University": "UNIVERSIDAD TECNICA DE MANABI",
+    "University Technological of Manabí": "UNIVERSIDAD TECNICA DE MANABI",
+    "UTM Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi-UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi - UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi: Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi. Av. Urbina y Che Guevara": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi. Avenida Urbina y Che Guevara": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi. Santa Ana": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi. Campus Experimental La Teodomira": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi Portoviejo": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi Extensión Bahía de Caráquez": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi Technical": "UNIVERSIDAD TECNICA DE MANABI",
+    "Physics and Chemistry Sciences. Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Physics and Chemistry of Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Física y Química de la Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Físicas y Químicas. Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Físicas y Químicas de la Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Físicas y Químicas Universidad Tecnica De Manabi UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi en Ecuador": "UNIVERSIDAD TECNICA DE MANABI",
+    "Universidad Tecnica De Manabi- UTM": "UNIVERSIDAD TECNICA DE MANABI",
+    "University Laic Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",  # (por claridad, este no es UTM; ver ULEAM abajo)
+    # Casuística de departamentos/roles (se normaliza al canónico UTM)
+    "Department of Social and Behavioral Sciences of Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad Ingeniería y Ciencias Aplicadas. Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Food and Biotechnology Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Physics and Chemistry Sciences. Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Ciencias Veterinarias Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Facultad de Ingeniería Agrícola de la Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Letras y Ciencias de la Educación en la Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Instituto de Posgrado en la Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Instituto de Posgrado Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+    "Departamento de Construcciones Civiles Universidad Tecnica De Manabi": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # ===== ULEAM — UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ =====
+    "Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi (ULEAM)": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi - ULEAM": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi Extensión Chone": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi Extensión": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica ‘Eloy Alfaro de Manabí’": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica 'Eloy Alfaro de Manabí'": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro of Manabí (ULEAM)": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "University Laica Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Laica Eloy Alfaro University of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "University Laica Eloy Alfaroof Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro deManabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabı": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manab": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Laica Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Lay Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Elroy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Eloy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "University Laica Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Laica Eloy Alfaro de Manabí University": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Civil Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Magister. Licenciada en Contabilidad y Auditoría. Coordinadora de la Carrera Administración de Empresas en la Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Magister. Ingeniero en Contabilidad y Auditora. Decano Extensión Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Magister. Ingeniero Comercial. Docente en la Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro De Manabi-Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "University Laica Eloy Alfaro of Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Univ Lacia Eloy Alfaro Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+    "Universidad Laica Eloy Alfaro of Manabí (ULEAM)": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABI",
+
+    # ===== UNESUM — UNIVERSIDAD ESTATAL DEL SUR DE MANABÍ =====
+    "Universidad Estatal del Sur de Manabí": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur de Manabí–Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "niversidad Estatal del Sur de Manabí–Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "University of the South of Manabí (UNESUM)": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "University of the South of Manabí UNESUM": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "State University of Southern Manabi": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+
+    # ===== ESPAM MFL — ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MFL” =====
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) ‘MFL’": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Felix López”": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Agropecuaria de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Politécnica Agropecuaria de Manabí \"Manuel Félix López”": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Politécnica Agropecuaria de Manabí “Manuel Félix López”": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Politécnica Agropecuaria de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Manuel Félix Lopez": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) (ESPAM MFL)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica de Manabí": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politecnica Agropecuaria de Manabí MFL": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Campus Limón": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) 'Manuel Félix López'": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Félix López": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica de Manabí (ESPAM)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Agricultural Polytechnic University of Manabi": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+
+    # ===== PUCE — PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (menciones Sede Manabí) =====
+    "Pontificia Universidad Catolica Del Ecuador-Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador—Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador—Sede Manabí (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifícia Pontificia Universidad Catolica Del Ecuador – Sede Manabí (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador – Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Manabí Headquarters": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== CASOS AMBIGUOS (se mapean al más probable del maestro) =====
+    "Universidad de Manabí Ecuador": "UNIVERSIDAD TECNICA DE MANABI",  # no existe "Universidad de Manabí" como canónica; usualmente se refiere a UTM
+
+    # ===== PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE) =====
+    "Pontificia Universidad Catolica Del Ecuador sede Santo Domingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica Ecuador-Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador-Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifica Pontificia Universidad Catolica Del Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador-Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador—Sede Manabí": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontíficia Pontificia Universidad Catolica Del Ecuador – Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontifícia Pontificia Universidad Catolica Del Ecuador – Sede Manabí (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador—Sede Manabí (PUniversidad Central Del EcuadorM)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas-PUniversidad Central Del EcuadorSE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas PUniversidad Central Del EcuadorSE": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador - Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica Ecuador-Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede Santo Do-mingo": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Sede en Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Ibarra": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Esmeraldes": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Manabi": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Prometeo Pontificia Universidad Catolica Del Ecuador Ecuador Sede Ib": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UNIVERSIDAD ANDINA SIMÓN BOLÍVAR =====
+    "Universidad Andina Simon Bolivar - Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Andina Simon Bolivar sede Ecuador UASB": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Andina Simon Bolivar – Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Andina Simon Bolivar Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Andina Simon Bolivar Bolvar Sede Ecuador": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Facultad Latinoamericana De Ciencias Sociales Sede Ecuador": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES",  # FLACSO (de tu maestro)
+
+    # ===== UNIVERSIDAD CATÓLICA DE CUENCA =====
+    "Universidad Catolica De Cuenca Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Universidad Catolica De Cuenca sede Principal": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "UCACUE Sede Azogues": "UNIVERSIDAD CATOLICA DE CUENCA",
+    "Sede Macas. Universidad Catolica De Cuenca": "UNIVERSIDAD CATOLICA DE CUENCA",
+
+    # ===== UNIVERSIDAD UTE (antes: UNIVERSIDAD TECNOLÓGICA EQUINOCCIAL) =====
+    "Universidad UTE Sede Santo Domingo": "UNIVERSIDAD UTE",
+    "Universidad Tecnológica Equinoccial Sede Santo Domingo": "UNIVERSIDAD UTE",
+    "Univ Tecnol Equinoccial Sede Santo Domingo": "UNIVERSIDAD UTE",
+    "Univ Tecnol Equinoccial Sede Santo Domingo de": "UNIVERSIDAD UTE",
+
+    # ===== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====
+    "Universidad Regional Autónoma de los Andes Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Docente de la carrera de Automotriz Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "carrera de Automotriz Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Uniandes Sede Babahoyo": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Sede Tulcan": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+    "Univ Reg Autonoma Andes Sede Ibarra": "UNIVERSIDAD REGIONAL AUTONOMA DE LOS ANDES",
+
+    # ===== ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH) =====
+    "Escuela Superior Politecnica De Chimborazo Sede Morona Santiago": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+
+    # ===== UNIVERSIDAD METROPOLITANA =====
+    "Universidad Metropolitana del Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+
+    # ===== UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE) =====
+    "Universidad De Las Fuerzas Armadas (Espe) sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS ( ESPE )",
+    "Universidad de Fuerzas Armadas Sede Latacunga": "UNIVERSIDAD DE LAS FUERZAS ARMADAS ( ESPE )",
+
+    # ===== PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (variantes de Sede Esmeraldas/Ibarra/Ambato/Manabí) =====
+    "Universidad Pontificia Católica del Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Sede Ibarra (PUniversidad Central Del Ecuador-SI)": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",  # se usa en refs de PUCE-Ibarra
+
+    # ===== FLACSO (de tu maestro) =====
+    "FLACSO Sede": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES",
+   "Universidad Técnica de Machala (UTMACH)": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH)-UTMACH": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) - Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH)-Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH). República del Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "UACA Universidad Técnica de Machala (UTMACH)": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) -DEIGC": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) Ecuador": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Universidad Técnica de Machala (UTMACH) (UTMACH)": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Machala Technical University": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Machala University of Technology": "UNIVERSIDAD TECNICA DE MACHALA",
+    "University of Machala": "UNIVERSIDAD TECNICA DE MACHALA",
+    "Technological University “San Antonio de Machala”": "UNIVERSIDAD TECNICA DE MACHALA",  # traducción/variante local
+
+    # ===== UNIVERSIDAD METROPOLITANA =====
+    "Universidad Metropolitana del Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA",
+    "Universidad Metropolitana del Ecuador Ecuador Extens Machala": "UNIVERSIDAD METROPOLITANA",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA INDOAMÉRICA =====
+    "Universidad Tecnológica Indoamérica (UTI). Machala y Sabanilla": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+	    # ===== UNIVERSIDAD ESTATAL DE MILAGRO (UNEMI) =====
+    "Universidad Estatal de Milagro (UNEMI)": "UNIVERSIDAD ESTATAL DE MILAGRO",
+    "Universidad Estatal de Milagr": "UNIVERSIDAD ESTATAL DE MILAGRO",
+
+    # ===== UNIVERSIDAD ESTATAL PENÍNSULA DE SANTA ELENA (UPSE) =====
+    "Universidad Estatal Península de Santa Elena": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Universidad Estatal Península de Santa Elena (UPSE)": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "UPSE Universidad Estatal Península de Santa Elena": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Peninsula of Universidad Estatal Península de Santa Elena (UPSE)": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Península de Universidad Estatal Península de Santa Elena": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Universidad Estatal Península de Sant Elena": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Universidad Estatal Península": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Universidad Estatal Península de Santa": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+    "Universidad Estatal Península de Santa Elena. Avda. principal": "UNIVERSIDAD ESTATAL PENINSULA DE SANTA ELENA",
+
+    # ===== UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC) =====
+    "Universidad Politécnica Estatal del Carchi": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Po-litécnica Estatal del Carchi (UPEC)": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal del Carchi-Ecuador": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal del Carchi (Ecuador)": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnico Estatal del Carchi": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+    "Universidad Politécnica Estatal del Carchi-Posgrado": "UNIVERSIDAD POLITECNICA ESTATAL DEL CARCHI",
+
+    # ===== UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO (UTEQ) =====
+    "Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal de Quevedo (UTEQ) (Uteq)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "cnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal de Quevedo (UTEQ). Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal deQuevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal de Quevedo (UTEQ) – Campus La María": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal de Quevedo (UTEQ) Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "UTEQ Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Eestatal de Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Técnica Estatal de Quevedo (UTEQ). Campus Ing. ManuelHaz álvarez": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Docente a Tiempo Completo de la Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Docente-Investigador de la Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Carrera de Zootecnia de la Universidad Técnica Estatal de Quevedo (UTEQ)": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Universidad Tcnica Estatal de Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Estatal de Quevedo": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+    "Univ Tecn Estatal Queveda": "UNIVERSIDAD TECNICA ESTATAL DE QUEVEDO",
+
+    # ===== UNIVERSIDAD ESTATAL DE BOLÍVAR =====
+    "Universidad Estatal de Bolívar": "UNIVERSIDAD ESTATAL DE BOLIVAR",
+    "Universidad Estatal de Bolívar-Ecuador": "UNIVERSIDAD ESTATAL DE BOLIVAR",
+    "Enfermeria Universidad Estatal de Bolívar": "UNIVERSIDAD ESTATAL DE BOLIVAR",
+
+    # ===== UNIVERSIDAD ESTATAL AMAZÓNICA (UEA) =====
+    "Universidad Estatal Amazónica": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amazónicaa": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amaz&amp": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad EstatalAmazó Nica": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Universidad Estatal Amazónica Ecuador": "UNIVERSIDAD ESTATAL AMAZONICA",
+    "Puyo Estatal Amazon": "UNIVERSIDAD ESTATAL AMAZONICA",  # referencia al campus/ciudad
+
+    # ===== UNIVERSIDAD ESTATAL DEL SUR DE MANABÍ (UNESUM) =====
+    "Universidad Estatal del Sur de Manabí": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur de Manabí–Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "niversidad Estatal del Sur de Manabí–Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur de Manabí Ecuador": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+    "Universidad Estatal del Sur": "UNIVERSIDAD ESTATAL DEL SUR DE MANABI",
+
+    # ===== EXTRA (también está en tu lista maestra) =====
+    "Univ Estatal Cuenca": "UNIVERSIDAD DE CUENCA",  # variante mal nombrada pero ecuatoriana
+	 "Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (Ecuador)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) del Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Ladrón de Guevara": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Instituto Geofísico": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico – Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Energía Eléctrica. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Poliécnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politénica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) – Universidad Católica de Chile": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN) =====
+    "Instituto De Altos Estudios Nacionales de Quito": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+    "Instituto De Altos Estudios Nacionales": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+    "The Instituto De Altos Estudios Nacionales": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+    "Instituto De Altos Estudios Nacionales (iaen)": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES",
+
+    # ===== PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR (PUCE) =====
+    "la Pontificia Universidad Católica de Quito": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Católica de Quito-Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # ===== UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE) =====
+    "Universidad Internacional del Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador - UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador: Escuela de Gestión Ambiental": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Escuela de Medicina": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UNIVERSIDAD PARTICULAR INTERNACIONAL SEK =====
+    "Universidad Particular Internacional SEK": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "Universidad Particular Internacional SEK Ecuador": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "Universidad Particular Internacional SEK/Universidad De Las Americas": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # ===== UNIVERSIDAD DE LAS AMERICAS (UDLA) =====
+    "Universidad De Las Americas": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # ===== UNIVERSIDAD NACIONAL DE EDUCACION UNAE =====
+    "Universidad Nacional de Educación UNAE": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE a Distancia (UNED)": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE a Distancia": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+
+    # ===== UNIVERSIDAD NACIONAL DE CHIMBORAZO (UNACH) =====
+    "Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo (UNACH)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo UNACH": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo-UNACH": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Engineering Faculty. Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo and Universidad De Las Fuerzas Armadas (Espe)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # ===== UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDIGENAS AMAWTAY WASI =====
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi Indígenas (UINPIAW)": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDIGENAS AMAWTAY WASI",
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDIGENAS AMAWTAY WASI",
+	 "Department of Mathematics of Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnic a Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politećnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Matemática. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Research Center on Mathematical Modeling (MODEMAT) - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Facultad de Ciencias Administrativas at Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Telecommunication and Networks. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politećnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+
+    # ===== UNIVERSIDAD NACIONAL DE LOJA (UNL) =====
+    "Universidad Nacional de Lo-ja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja. Av Pio Jaramillo ciudadela universitaria": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    # ===== UNIVERSIDAD NACIONAL DE CHIMBORAZO (UNACH) =====
+    "Universidad Nacional De Chimborazo UNACH and Universidad De Las Fuerzas Armadas (Espe)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo. Ecuador": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Nacional University of Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "G-RESEARCH at Universidad Nacional De Chimborazo (UNACH)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # ===== UNIVERSIDAD NACIONAL DE EDUCACION UNAE =====
+    "Universidad Nacional de Educación UNAE Enrique Guzmán y Valle": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+
+    # ===== UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE) =====
+    "Universidad Internacional (UIDE)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # ===== UNIVERSIDAD PARTICULAR INTERNACIONAL SEK (UISEK) =====
+    "Universidad Particular Internacional SEK (UISEK)": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+    "Universidad Particular Internacional SEK (Ecuador)": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+	  "Universidad Tecnológica Indoamérica (UTI)": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamérica (UTI)–Quito": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Indoamerica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Ginecología Universidad Tecnológica Indoamérica (UTI)": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnologica Indoamerica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamérica (UTI). Machala y Sabanilla": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamérica (UTI) de Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Carrera de Psicologia de la Universidad Indoamerica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamé Rica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica IndoAmérica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoame´rica": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Universidad Tecnológica Indoamérica (UTI) Ecuador": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+    "Univ Tecnol Indoamenca": "UNIVERSIDAD TECNOLOGICA INDOAMERICA",
+	    # ===== UNIVERSIDADES NACIONALES DE ECUADOR =====
+    "Universidad Nacional De Chimborazo. Facultad de Salud Pública": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo (UNAСH) / Universidad Nacional De Chimborazo UNAСH": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional de Chimboraz": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo y Ecuador": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Humanas y Tecnologías de la Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    "Universidad Nacional de Educación UNAE of Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE-Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE a Distancia": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Catedrático de Derecho Constitucional Universidad Nacional de Educación UNAE a Distancia Ex letrado del Tribunal Constitucional": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Facultad de Derecho Universidad Nacional de Educación UNAE a Distancia": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+    "Universidad Nacional de Educación UNAE de Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+
+    # ===== INTERNACIONALES / PARTICULARES RELACIONADAS CON ECUADOR =====
+    "Universidad Particular Internacional SEK del Ecuador": "UNIVERSIDAD INTERNACIONAL SEK ECUADOR",
+    "Universidad Internacional de Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional El Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Escuela de Informática y Multimedia": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+	
+	    # ===== UNIVERSIDADES PÚBLICAS DEL ECUADOR =====
+    "Escuela Politécnica Nacional (EPN) Ladron de Guevara": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politecnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Facultad de Ciencias. Escuela Politécnica Nacional (EPN) (Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico-Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Poltécnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) del Ecuador (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Universidad Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Metalurgia Extractiva Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Polit_ecnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Polit'ecnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto de Ciencias Biológicas - Escuela Politécnica Nacional (MEPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) de Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) University": "ESCUELA POLITECNICA NACIONAL",
+    "Department of Automatic Control at Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politècnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Telecomunicaciones y Redes de Información. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politíecnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Department of Management Sciences-Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Polytecnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "SIGTI Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Polit∅cnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (Instituto de Ciencias Biológicas)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politcnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Economía Cuantitativa Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Carrera de Ingeniería en Ciencias Económicas y Financieras de la Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN)-CEC-EPN": "ESCUELA POLITECNICA NACIONAL",
+    "Research Center on Mathematical Modeling (MODEMAT) and Departamento de Matemática - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN)-EPN": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (PAMC)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politícnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (Quito": "ESCUELA POLITECNICA NACIONAL",
+
+    "Universidad Nacional De Chimborazo Riobamba": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Saberes Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    "Universidad Nacional de Loja-Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ. Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    "Universidad Nacional de Educación UNAE del Ecuador UNAE": "UNIVERSIDAD NACIONAL DE EDUCACION UNAE",
+
+    "Universidad Nacional de las Fuerzas Armadas": "UNIVERSIDAD DE LAS FUERZAS ARMADAS ESPE",
+
+    # ===== UNIVERSIDADES PRIVADAS DEL ECUADOR =====
+    "UIDE Universidad Internacional del Ecuador (Quito Headquarters)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Ecuador Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Particular Internacional SEK—Ecuador": "UNIVERSIDAD INTERNACIONAL SEK ECUADOR",
+    "Univ Internacional SEK": "UNIVERSIDAD INTERNACIONAL SEK ECUADOR",
+	 # =========================
+    # UNIVERSIDADES ECUADOR
+    # =========================
+
+    # --- ESCUELA POLITÉCNICA NACIONAL (EPN) ---
+    "Biblioteca General de la Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Ecuador": "ESCUELA POLITECNICA NACIONAL",
+
+    # --- UNIVERSIDAD NACIONAL DE CHIMBORAZO (UNACH) ---
+    "Médico General Universidad Nacional De Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Escuela Nacional de Chimborazo": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo Ecuador (UNACH)": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+    "Universidad Nacional De Chimborazo Ecuador": "UNIVERSIDAD NACIONAL DE CHIMBORAZO",
+
+    # --- UNIVERSIDAD NACIONAL DE EDUCACIÓN (UNAE) ---
+    "Ecuador Universidad Nacional de Educación UNAE": "UNIVERSIDAD NACIONAL DE EDUCACION",
+    "Universidad Nacional de Educación UNAE Ecuador": "UNIVERSIDAD NACIONAL DE EDUCACION",
+    "Universidad Nacional de Educación UNAE Enrique Guzman Y Valle": "UNIVERSIDAD NACIONAL DE EDUCACION",
+
+    # --- UNIVERSIDAD NACIONAL DE LOJA (UNL) ---
+    "Universidad Nacional de Loja Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+
+    # --- UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE) ---
+    "UniversidadInternacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Quito-Ecuador and Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "PGY4 Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Estrategia y Marketing. Docente de la Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidade Internacional doEquador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidade Internacional do Equador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # --- UNIVERSIDAD ANDINA SIMÓN BOLÍVAR (UASB - sede Ecuador) ---
+    "Universidad Andina Simon Bolivar": "UNIVERSIDAD ANDINA SIMON BOLIVAR",
+    "Universidad Internacional de Andalucía": "UNIVERSIDAD ANDINA SIMON BOLIVAR",  # esta la marco porque en Ecuador está vinculada
+
+    # --- UNIVERSIDAD INTERNACIONAL SEK (SEK) ---
+    "Univ Internacional SEK": "UNIVERSIDAD PARTICULAR INTERNACIONAL SEK",
+
+    # --- UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ) ---
+    "Universidad Internacional Menendez Pelayo - Spain": "UNIVERSIDAD SAN FRANCISCO DE QUITO",  # ojo, aquí la incluyo porque aparece en la misma categoría de privadas internacionales vinculadas
+
+    # --- UNIVERSIDAD INTERNACIONAL DE LA RIOJA (UNIR) ---
+    "Estudiante de Postgrado de la Universidad Internacional de la Rioja": "UNIVERSIDAD INTERNACIONAL DE LA RIOJA", 
     
-    
+
+
+   "Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol-ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol—ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol. ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPO)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politócnica del Litoral": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Politecnica del Litoral": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Politecnica del Litoral ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnina del Litoral": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Politecnica Naciónal": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Politecnica del Litoral ESPOL (Ecuador)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESCOLA SUPERIOR POLITECNICA DEL LITORAL ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol - ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica del Ecuador": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Superior Polytechnic School of the Coast (Escuela Superior Politecnica Del Litoral Espol ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Superior Polytechnic School of the Coast (Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPOL Polytechnic Univ. Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    # Facultades/centros (ESPOL) -> misma universidad
+    "FIMCP Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Facultad de Ingeniería en Electricidad y Computación Escuela Superior Politécnica": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Facultad de Ingeniería en Ciencias de la Tierra (FICT) de la Escuela Superior Politecnica Del Litoral Espol (ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "CIBE. Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol CIBE-ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol CIBE-ESPOL. Campus Gustavo Galindo": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol Campus Gustavo Galindo": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol (CENAIM – ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "ESPAE Escuela de Negocios de la ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela de Negocios de la ESPOL": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Faculty of Social and Humanistic Sciences Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Faculty of Mechanical Engineering and Production Science Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL) Facultad de Ciencias Naturales y Matemáticas": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Facultad de Ciencias de la Vida Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela de Negocios de la ESPOL (ESPAE)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Charles Darwin Foundation and Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Charles Darwin Foundation-Escuela Superior Politecnica Del Litoral Espol Research Program": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+
+    # =========================
+    # ESCUELA POLITÉCNICA NACIONAL (EPN)
+    # =========================
+    "Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (Ecuador)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Ladrón de Guevara": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Ladron de Guevera": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica National": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Polytecnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) of Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN)-EPN": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) (PAMC)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) University": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politénica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécníca Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politećnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnic a Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politícnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Poltécnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Poltécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Poltécnica Nacional (EPN) (Quito": "ESCUELA POLITECNICA NACIONAL",
+    "la Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politcnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politìcnica Nacional": "ESCUELA POLITECNICA NACIONAL",
+    # Unidades/Institutos de la EPN -> misma universidad
+    "Instituto Geofísico – Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico - Escuela Politécnica Nacional (IGEPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico at the Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) Instituto Geofísico": "ESCUELA POLITECNICA NACIONAL",
+    "Instituto Geofísico. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Department of Mathematics of Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Matemática. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Departamento de Matemática - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Research Center on Mathematical Modeling (MODEMAT) - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Research Center on Mathematical Modeling (MODEMAT) and Departamento de Matemática - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "SIGTI Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Facultad de Ciencias Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "DESODEH Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Facultad de Ciencias Administrativas at Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+
+    # =========================
+    # ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)
+    # =========================
+    "Escuela Superior Politecnica De Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo ‎‎(ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior ‎Politécnica del Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo. Riobamba": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo-Ecuador. (ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo-ESPOCH": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo Sede Morona Santiago": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica Chimborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica de Chimoborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "ESPOCH—Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo – ESPOCH": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica deChimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécni ca de Chi mborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica de Chi mborazoFacultad de Recursos Naturales": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela de Ecoturismo de la Superior Politécnica de Chimborazo-ESPOCH": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela de Ecoturismo de la Superior Politecnica de Chimborazo-ESPOCH": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo (ESPOCH) EC060155-Riobamba (Chimborazo)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo. Ciencias Riobamba": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Higher Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo del Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Super Chimborazo Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politecnica De Chimborazo Ecuador": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+
+    # =========================
+    # ESPAM MFL (Escuela Superior Politécnica Agropecuaria de Manabí)
+    # =========================
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) ‘MFL’": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Felix López”": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Félix López": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Manuel Félix Lopez": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Politécnica Agropecuaria de Manabí “Manuel Félix López”": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria Manuel Félix López": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica de Manabí": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica de Manabí (ESPAM)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica de Manabí (ESPAM-MFL)": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politecnica Agropecuaria de Manabí MFL": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Campus Limón": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) 'Manuel Félix López'": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Bolívar": "ESCUELA SUPERIOR POLITECNICA AGROPECUARIA DE MANABI",
+
+    # =========================
+    # UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE (antes ESPE)
+    # =========================
+    "Escuela Superior Politécnica del Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Politécnica de Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Politecnica del Ejercito": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Superior Politecnica del Ejercito": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Superior del Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Superior Politecnica Del Ejercito": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",
+    "Escuela Superior del Ejército Héroes de Cenepa-ESFORSE": "UNIVERSIDAD DE LAS FUERZAS ARMADAS (ESPE)",  # afín institucional
+
+    # =========================
+    # ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL – VÍNCULOS (seguir a ESPOL)
+    # =========================
+    "Universidad del Pacífico Escuela de Negocios Ecuador": "UNIVERSIDAD DEL PACIFICO ESCUELA DE NEGOCIOS",  # privada EC
+    "Universidad del Pacífico Escuela de Negocios": "UNIVERSIDAD DEL PACIFICO ESCUELA DE NEGOCIOS",
+    "Universidad del Pacífico Escuela de Negocios (UPAC)": "UNIVERSIDAD DEL PACIFICO ESCUELA DE NEGOCIOS",
+
+    # =========================
+    # UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ)
+    # =========================
+    "Escuela de Odontologia Universidad San Francisco de Quito (USFQ) (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+    "Escuela de Odontología Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO",
+
+    # =========================
+    # UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)
+    # =========================
+    "Universidad Internacional del Ecuador Escuela de Medicina": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador: Escuela de Gestión Ambiental": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+    "Universidad Internacional del Ecuador Escuela de Informática y Multimedia": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR",
+
+    # =========================
+    # UNIVERSIDAD DE LAS AMÉRICAS (UDLA)
+    # =========================
+    "Universidad De Las Americas – Escuela de Medicina": "UNIVERSIDAD DE LAS AMERICAS",
+
+    # =========================
+    # UNIVERSIDAD TÉCNICA DE AMBATO (UTA)
+    # =========================
+    "Universidad Técnica de Ambato (UTA). Escuela de Medicina": "UNIVERSIDAD TECNICA DE AMBATO",
+    "Ambato. Escuela de Ingeniería en Sistemas": "UNIVERSIDAD TECNICA DE AMBATO",
+
+    # =========================
+    # UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)
+    # =========================
+    "Universidad Tecnica De Manabi. Escuela de Enfermería": "UNIVERSIDAD TECNICA DE MANABI",
+
+    # =========================
+    # PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)
+    # =========================
+    "EscuelaÂ deÂ CienciasÂ AgrícolasÂ yÂ AmbientalesÂ (ECAA)Â PontificiaÂ UniversidadÂ CatólicaÂ delÂ Ecuador": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+    "Pontificia Universidad Catolica Del Ecuador Escuela de Ciencias Biológicas": "PONTIFICIA UNIVERSIDAD CATOLICA DEL ECUADOR",
+
+    # =========================
+    # YACHAY TECH (UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL)
+    # =========================
+    "Universidad De Investigacion De Tecnologia Experimental Yachay – Escuela de Ciencias Biológicas e Ingeniería": "UNIVERSIDAD DE INVESTIGACION DE TECNOLOGIA EXPERIMENTAL YACHAY",
+
+    # =========================
+    # (Aliases sueltos que siguen siendo Ecuador y ya están cubiertos por arriba)
+    # =========================
+    "Escuela Politécnica Nacional (EPN) de Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica Nacional (EPN) de Quito": "ESCUELA POLITECNICA NACIONAL",
+    "Universidad Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "3Escuela Politécnica Nacional (EPN)": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politécnica de Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO",
+    "Escuela Superior Politécnica Del Litora (ESPOL)": "ESCUELA SUPERIOR POLITECNICA DEL LITORAL",
+    "Escuela Politecn Nacl Ecuador": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politecn Nacl": "ESCUELA POLITECNICA NACIONAL",
+    "Escuela Politecn Nac": "ESCUELA POLITECNICA NACIONAL",
+	  "University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Azuay university": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay UDA": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay (Ecuador)": "UNIVERSIDAD DEL AZUAY",
+    "Univ. of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univ. del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay Cuenca": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay-Cuenca-Ecuador": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay Ecuador": "UNIVERSIDAD DEL AZUAY",
+    "Universidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Universi-dad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Univer-sidad del Azuay": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay (Faculty of Medicine": "UNIVERSIDAD DEL AZUAY",
+    "Escuela de Biología de la University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Arquitectura y Arte en la University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "Vertebrados de la University of Azuay": "UNIVERSIDAD DEL AZUAY",
+    "University of Azuay MZUA": "UNIVERSIDAD DEL AZUAY",
+	  # ========== ESPOL ==========
+    "Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol(ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnina del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol—ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol-ESPOL (Ecuador)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol-ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol Ecuador (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol. ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPOL Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPO)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (CENAIM – ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "CIBE. Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "FIMCP Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPAE Escuela de Negocios de la ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Facultad de Ingeniería en Electricidad y Computación Escuela Superior Politécnica": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol Campus Gustavo Galindo": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol Facultad de Ingeniería Marítima Ciencias Biológicas": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL). Earth Sciences Engineering School": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Superior Polytechnic School of the Coast (Escuela Superior Politecnica Del Litoral Espol ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnica Del Litora (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Politécnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Universidad Politécnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Charles Darwin Foundation and Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+
+    # ========== ESPOCH ==========
+    "Escuela Superior Politecnica De Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo ‎‎(ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo. Riobamba": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo-Ecuador. (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "ESPOCH—Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Politécnica de Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica deChimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécni ca de Chi mborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chi mborazoFacultad de Recursos Naturales": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo Sede Morona Santiago": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo (ESCPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo del Ecuador": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo. ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+
+    # ========== EPN ==========
+    "Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politénica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécníca Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politećnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Polytecnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica National": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) Quito": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) (Ecuador)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) of Ecuador": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) of Ecuador (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) Ladrón de Guevara": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico – Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico - Escuela Politécnica Nacional (IGEPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico at the Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Department of Mathematics of Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Research Center on Mathematical Modeling (MODEMAT) - Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Telecommunication and Networks. Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "SIGTI Escuela Politécnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica National": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (EPN) 170517": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Universidad Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+
+    # ========== ESPAM MFL ==========
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) ‘MFL’": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Felix López”": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Manuel Félix Lopez": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) (ESPAM MFL)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Politécnica Agropecuaria de Manabí “Manuel Félix López”": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Politécnica Agropecuaria de Manabí \"Manuel Félix López”": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politecnica Agropecuaria de Manabí MFL": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) Campus Limón": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM MFL) “Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica de Manabí": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+    "Escuela Superior Politécnica de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)",
+
+    # ========== UPS ==========
+    "Universidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana of Ecuador": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Unversidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "University Politecnic Salesian of Ecuador": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana (UPS)": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana of Quito-Ecuador Engineer Systems": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+
+    # ========== UPEC ==========
+    "Universidad Politécnica Estatal del Carchi": "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC)",
+    "Universidad Politécnica Estatal del Carchi-Ecuador": "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC)",
+    "Universidad Politécnica Estatal del Carchi (Ecuador)": "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC)",
+    "Universidad Politécnica Estatal del Carchi-Posgrado": "UNIVERSIDAD POLITÉCNICA ESTATAL DEL CARCHI (UPEC)",
+
+    # ========== UMET ==========
+    "Universidad Metropolitana del Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Metropolitan University of Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Universidad Metropolitana del Ecuadorr": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Universidad Metropolitana del Ecuador de Ciencias de la Educación": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuador-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuador-Universidad de Granma": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuadorr": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuadorr- Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Convenio Universidad Metropolitana del Ecuadorr-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Universidad Metropolitana del Ecuador para la Educación y el Trabajo": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+    "Metropolitan University (UMET)": "UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET)",
+
+    # ========== ESPE (ex E s c u e l a  P o l i t é c n i c a  d e l  E j é r c i t o ) ==========
+    "Escuela Superior Politécnica del Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS - ESPE",
+    "Escuela Politécnica de Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS - ESPE",
+    "Escuela Politécnica de Chimborazo" : "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",  # (corrección por nombre histórico confuso)
+	   # ===================== UIDE =====================
+    "Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador - UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "UIDE International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "International University of Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador Escuela de Medicina": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador: Escuela de Gestión Ambiental": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "UniversidadInternacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Quito-Ecuador and Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador Powe-red by Arizona State University": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "UIDE International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "International University of Ecuador (UIDE)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional (UIDE)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+
+    # ===================== UISEK =====================
+    "Universidad Particular Internacional SEK": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK (Ecuador)": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "SEK International University of Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "SEK International University": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK/Universidad De Las Americas": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Internacional (UISEK)": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+
+    # ===================== AMAwtay Wasi =====================
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi Indígenas (UINPIAW)": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi (UINPIAW)": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+	 "Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "UIDE Universidad Internacional del Ecuador (Quito Headquarters)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "International University of Ecuador UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional de Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "The International University of Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador (UIDE)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador Escuela de Medicina": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador (Quito)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador - UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad International del Ecuador – UIDE": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador UIDE (Quito Headquarters)": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+
+    # ===================== UISEK =====================
+    "SEK International University": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "SEK International University of Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK—Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Internacional SEK": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK (UISEK)": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Particular Internacional SEK del Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Universidad Internacional (UISEK)": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+    "Univ Internacional SEK": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+
+    # ========== Universidad Intercultural Amawtay Wasi ==========
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+    "Universidad Intercultural Amawtay Wasi": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi (UINPIAW)": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+    "Universidad Intercultural de las Nacionalidades y Pueblos Indígenas Amawtay Wasi Indígenas (UINPIAW)": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+	    # ========== UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE) ==========
+    "Ecuador Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "UniversidadInternacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Quito-Ecuador and Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Universidad Internacional del Ecuador. Quito": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Univ Internac Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "PGY4 Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+    "Estrategia y Marketing. Docente de la Universidad Internacional del Ecuador": "UNIVERSIDAD INTERNACIONAL DEL ECUADOR (UIDE)",
+
+    # ========== UNIVERSIDAD INTERNACIONAL SEK (UISEK) ==========
+    "Universidad Particular Internacional SEK del Ecuador": "UNIVERSIDAD INTERNACIONAL SEK (UISEK)",
+
+    # ========== UNIVERSIDAD INTERNACIONAL DE ANDALUCÍA ==========
+    "Universidad Internacional de Andalucía": "UNIVERSIDAD INTERNACIONAL DE ANDALUCÍA",
+
+    # ========== UNIVERSIDAD INTERCULTURAL AMAUTAY WASI ==========
+    "Universidad Intercultural Amawtay Wasi": "UNIVERSIDAD INTERCULTURAL DE LAS NACIONALIDADES Y PUEBLOS INDÍGENAS AMAUTAY WASI",
+
+    # ========== UNIVERSIDAD NACIONAL INTERCULTURAL DE LA AMAZONÍA ==========
+    "Univ Nacl Intercultural Amazonia": "UNIVERSIDAD NACIONAL INTERCULTURAL DE LA AMAZONÍA",
+	   "Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi UTM": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "University Tecnica of Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Food and Biotechnology Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Laboratorio de Análisis Químicos y Biotecnológicos. Instituto de Investigación. Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Físicas y Químicas. Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Físicas y Químicas de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi. Av. Urbina y Che Guevara": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi-UTM": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Physics and Chemistry Sciences. Universidad Tecnica De Manabi (UTM)": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Carrera de Medicina Veterinaria. Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi de Ecuador": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi Ecuador": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Physics and Chemistry of Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi: Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "UTM Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi Extensión Bahía de Caráquez": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi Technical": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Letras y Ciencias de la Educación en la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Docente en la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Académico de la Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Departamento de Construcciones Civiles Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi en Ecuador": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Abogada Universidad de Carabobo Venezuela. Docente-Investigador de la Universidad Tecnica De Manabi Ecuador": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi- UTM": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi. Santa Ana": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi. Campus Experimental La Teodomira": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi. Escuela de Enfermería": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi-Hospital General Portoviejo": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Carrera de Psicología de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Carrera de Medicina de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi (Ecuador)": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Profesor Principal Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Doctora en Estadística. Docente de Estadística y Demografía de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Profesor Contratado Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Profesora Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Docente Titular a Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Profesora a Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Licenciada en Trabajo Social. Profesora a Tiempo Completo de la Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Licenciada en Enfermería. Docente de la Escuela de Enfermería. Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Ingeniero Industrial. Doctor en Ciencias Técnicas. Docente de la Facultad de Ciencias Administrativas y Económicas. Universidad Tecnica De Manabi": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi Portoviejo": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica De Manabi. Av. José María Urbina y Che Guevara": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica de Maniba": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad TEcnica de Manabî": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+    "Universidad Tecnica de Manabf": "UNIVERSIDAD TÉCNICA DE MANABÍ (UTM)",
+
+    # ================= ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) =================
+    "Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol(ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol—ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol-ESPOL (Ecuador)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol - ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol Ecuador": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol. ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPOL Escuela Superior Politecnica Del Litoral Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica de Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol–ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Superior Polytechnic School of the Coast (Escuela Superior Politecnica Del Litoral Espol ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL) Polytechnic University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica Del Litoral Espol (ESPOL) and the University of New Orleans (UNO)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+
+    # ================= ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH) =================
+    "Escuela Superior Politecnica De Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo. Riobamba": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo-Ecuador. (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo-ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo University (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo (ESCPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "ESPOCH—Escuela Superior Politecnica De Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo – ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo del Ecuador": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela de Ecoturismo de la Superior Politecnica de Chimborazo-ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politecnica De Chimborazo. Facultad de Salud Pública": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+	
+	    "Universidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana of Ecuador": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "GIDTEC-Unviersidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "GIE-Unviersidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana (UPS)": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Unversidad Politécnica Salesiana": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana of Quito-Ecuador Engineer Systems": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana Ecuador": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+    "Universidad Politécnica Salesiana-Ecuador": "UNIVERSIDAD POLITÉCNICA SALESIANA (UPS)",
+	   "Universidad De Investigacion De Tecnologia Experimental Yachay for Experimental Technology and Research (Yachay Tech)": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay for Experimental Technology and Research": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay of Technology and Research": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay (Ecuador)": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay (Universidad De Investigacion De Tecnologia Experimental Yachay)": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad Técnica de Yachay. Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachayeristy": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay(Universidad De Investigacion De Tecnologia Experimental Yachay)": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad de Investigación Tecnológica Experimental Yachay (Yachay Tech). Urcuquí": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay – UITEY": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay – Escuela de Ciencias Biológicas e Ingeniería": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Yachay Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay School of Physics and Nanotechnology": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Yachay EP and Yachay Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay-100199": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Yachay Scientific Computing Group": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay. Universidad De Investigacion De Tecnologia Experimental Yachay- San Miguel de Urcuquí": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay Hacienda San José": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay-Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Yachay EP": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad de Tecnología Experimental Yachay Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental YachayTech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "Universidad De Investigacion De Tecnologia Experimental Yachay Tech Urcuquí": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+    "AInstituto Tecnológico Superior 17 de Julio-Yachay": "INSTITUTO TECNOLÓGICO SUPERIOR 17 DE JULIO - YACHAY",
+	    # UNIVERSIDAD UEES
+    # ==========================
+    "Universidad Particular de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo – Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo – Samborondón": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo-Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo (UEES)": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo—Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo - Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo – UEES": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo UEES": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Instituto Tecnológico Superior Universidad Particular de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo. Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu SantoEcuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo-UEES": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo — Ecuador": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo “UEES": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Universidad Particular de Especialidades Espíritu Santo “UEES”": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "ESAI Business School - Universidad Particular de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+    "Tecnológico Universidad Particular de Especialidades Espíritu Santo": "UNIVERSIDAD PARTICULAR DE ESPECIALIDADES ESPÍRITU SANTO (UEES)",
+	 # ===== UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES) =====
+    "Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes of Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Regional University of the Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Uniandes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    # Variantes con “Autónoma de los Andes” (uso común en tu listado)
+    "Universidad Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Autónoma de los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    # Variantes abreviadas / con errores tipográficos
+    "niversidad Regional Autónoma de los Andes (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma de Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Ios Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autinoma Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma los Andes UNIAND": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Reg Autonoma Los Andes UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Reg Autonomous Univ Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Autonoma Reg Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Autonoma Reg Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Autonoma los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    # Sedes / extensiones (todas apuntan a UNIANDES)
+    "UNIANDES Ambato": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Ambato)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Riobamba)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Riobamba Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes UNIADES - Extensions Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Autonomous Regional University the Andes UNIADES - Extension Riobamba": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Ibarra)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Autonoma Reg Los Andes Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Sede Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Ibarra": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Tulcán": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes (UNIANDES Tulcán)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Tulcan": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Tulcan": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Tulcan Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Sede Tulcan": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Puyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Puyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Puyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Puyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Quevedo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Quevedo Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Uniandes Sede Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Babahoyo Headquarters Uniandes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Extens Babah": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Babahoyo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "UNIANDES Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Uniandes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Autonoma Reg Los Andes Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes St Domingo Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    "Universidad Regional Autónoma de los Andes Ibarra Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Universidad Regional Autónoma de los Andes Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Andes Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Univ Reg Autonoma Los Andes Ecuador": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Reg Autonoma Los Andes UNIANDES": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+
+    # Frases de cargo/actividad en UNIANDES (también a UNIANDES)
+    "Docente de la carrera de Automotriz Universidad Regional Autónoma de los Andes (UNIANDES) Sede Santo Domingo": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la carrera de Automotriz Universidad Regional Autónoma de los Andes (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la carrera de Medicina Universidad Regional Autónoma de los Andes (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la carrera de Medicina Universidad Regional Autónoma de los Andes (UNIANDES Santo Domingo)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la carrera de Derecho Universidad Regional Autónoma de los Andes (UNIANDES Riobamba)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la carrera de Derecho Universidad Regional Autónoma de los Andes (UNIANDES Tulcán)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Docente de la Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Analista de Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Contabilidad Superior y Auditoria Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Carrera de Administración de Empresas Universidad Regional Autónoma de los Andes (UNIANDES)": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Software Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Vicerrector de la Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Director Academico de la Universidad Regional Autónoma de los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+    "Estudiante Univ Reg Autonoma Los Andes": "UNIVERSIDAD REGIONAL AUTÓNOMA DE LOS ANDES (UNIANDES)",
+	    # ===== INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN) =====
+    "Instituto De Altos Estudios Nacionales": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales de Quito": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "The Instituto De Altos Estudios Nacionales": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales (iaen)": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales (IAEN)": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales (IAEN) and the National Center for the Right to Territory (CENEDET)": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales of Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales de Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Instituto De Altos Estudios Nacionales—IAEN": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Sede Ecuador. Profesor del Instituto De Altos Estudios Nacionales": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+
+    # Variantes abreviadas o con errores
+    "Inst Altos Estudios Nacl": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Inst Altos Estudios Nacl Ecuador IAEN": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Inst Altos Estudios Nacion": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Inst Altos Estudios Nac": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Inst Altos Estudios Nacl Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Ist Altos Estudios Nacl": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+    "Inst Altos Estudios Ecuador": "INSTITUTO DE ALTOS ESTUDIOS NACIONALES (IAEN)",
+
+    # ===== UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (pública) =====
+    "Universidad Técnica Luis Vargas Torres de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica Luis Vargas Torres de Esmeraldas (UTLVTE)": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica “Luis Vargas Torres” de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica \"Luis Vargas Torres\" de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica 'Luis Vargas Torres' de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica de Esmeraldas Luis Vargas Torres": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Universidad Técnica” Luis Vargas Torres” de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Luis Vargas Torres Technical University of Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Luis Vargas Torres de Esmeraldas University of Technology": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Univ Tecn Luis Vargas Torres Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Univ Tecn Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Docente en la Universidad Técnica Luis Vargas Torres de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+    "Docente de la Universidad Técnica Luis Vargas Torres de Esmeraldas": "UNIVERSIDAD TÉCNICA LUIS VARGAS TORRES DE ESMERALDAS (UTLVTE)",
+
+    # ===== PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (privada) =====
+    "Universidad Pontificia Católica del Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Esmeraldas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Universidad Católica de Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+
+    # Variantes con sufijos/etiquetas erróneas (las normalizamos igual a PUCE Esmeraldas)
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador in Esmeraldas (PUniversidad Central Del EcuadorSE)": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas-PUniversidad Central Del EcuadorSE": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas PUniversidad Central Del EcuadorSE": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Esmeraldas Headquarters": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Sede Esmeraldas – PUniversidad Central Del EcuadorSE": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+    "Pontificia Universidad Catolica Del Ecuador Ecuador Sede Esmeraldas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR - SEDE ESMERALDAS (PUCE ESMERALDAS)",
+	   # ===== FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES (FLACSO - ECUADOR) =====
+    "FLACSO": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+    "Flacso": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+    "FLACSO Ecuador": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+    "Facultad Latinoamericana de Ciencias Sociales": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+    "Facultad Latinoamericana de Ciencias Sociales (FLACSO)": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+    "Facultad Latinoamericana de Ciencias Sociales Ecuador": "FACULTAD LATINOAMERICANA DE CIENCIAS SOCIALES - SEDE ECUADOR (FLACSO ECUADOR)",
+	   # ===== UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM) =====
+    "Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi (ULEAM)": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi - ULEAM": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi – ULEAM": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi-Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi Ecuador": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi (ULEAM) Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro extensión Pedernales": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi Extensión Chone": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro De Manabi Extensión": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica 'Eloy Alfaro de Manabí'": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica ‘Eloy Alfaro de Manabí’": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloi Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Elroy Alfaro de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro de Manabı": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro de Mamabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro de Manab": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica” Eloy Alfaro” de Manabí": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Laica Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "docente Universidad Laica Eloy Alfaro Portoviejo": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Civil Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Facultad de Enfermería Universidad Laica Eloy Alfaro": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Docente e Investigador de la Universidad Laica Eloy Alfaro De Manabi": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Universidad Laica Eloy Alfaro de Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Univ Laica Eloy Alfaro": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Univ Laica Eloy Alfaro Manab": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+    "Univ Laica Eloy Alfaro Manta": "UNIVERSIDAD LAICA ELOY ALFARO DE MANABÍ (ULEAM)",
+
+    # ===== UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL =====
+    "Universidad Laica Vicente Rocafuerte de Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "University Laica VICENTE ROCAFUERTE": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Industry and Construction University Laica Vicente Rocafuente": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+	    # ===== UNIVERSIDAD TECNOLÓGICA ECOTEC =====
+    "Universidad Tecnológica ECOTEC": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "University of Ecotec (Ecuador)": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Univesidad Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Ecotec": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "La Universidad Tecnológica ECOTEC": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Gobernabilidad de la Universidad Tecnológica ECOTEC": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+    "Universidad Tecnológica ECOTEC Ecuador": "UNIVERSIDAD TECNOLÓGICA ECOTEC",
+	   # ===== UNIVERSIDAD METROPOLITANA DEL ECUADOR (UMET) =====
+    "Universidad Metropolitana del Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuadorr": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Metropolitan University of Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador de Ciencias de la Educación": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador para la Educación y el Trabajo": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador UMET": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "UMET Universidad Metropolitana del Ecuador Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador &amp": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador Ecuador Sede Machala": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador Ecuador Extens Machala": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Universidad Metropolitana del Ecuador Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuador": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuador-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuador-Universidad de Granma": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuadorr": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuadorr- Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
+    "Convenio Universidad Metropolitana del Ecuadorr-Universidad de Cienfuegos “Carlos Rafael Rodríguez”": "UNIVERSIDAD METROPOLITANA DEL ECUADOR",
     # ——— Añade los que vayas detectando ———
+	
+
+  # ===== UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH) =====
+    "Yachay University for Experimental Technology and Research (UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH))": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experimental Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH) University": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Yachay-Tech University": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "YachayTech University": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "University YachayTech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Yachay University": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación y Tecnología Experimental Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experimental Yachay (Ecuador)": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experiemental Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad de Investigación de Tecnología Experimental Yachay – UITEY": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Yachay Experimental Technology Research University": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad Yachay-Tech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Universidad YachayTech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "University of Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Univ Invest Tecnol Expt Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Univ Tecnol Expt Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Univ Yachay": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "Univ Yachay Yech": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH) Ecuador": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+    "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH) Urcuqui Ecuador": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY",
+	 "Universidad Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja – UTPL": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja-UTPL": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja UTPL": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja UTPL Loja Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja. San Cayetano Alto": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja San Cayetano Alto": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja San Cayetano": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja-Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja (Ecuador)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "UTPL Universidad Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "UTPL": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Technical University of Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Technical University of Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Technical Particular University of Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Technical Particular University of Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Private Technical University of Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Private Technical University of Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Private Technology University of Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Particular de Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Privada de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particular de Loja Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "UniversidadTécnica Particular de Loja(UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Particular de Loja UTPL Loja Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técnica Partícular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tecnica Particula de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Técncia Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Téchnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad T∅cnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universide Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Teicnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad T écnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tècnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universidad Tcnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universitat Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ. Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ. Técnica Particular de Loja (UTPL)": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja UTPL": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja Ecuador": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tech Particular Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particulas Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Universdiad Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "versidad Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Técnica Particular de Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular De Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particular Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tech Particular Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Univ Tecn Particulas Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Particular Tech Univ Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+    "Private Tech Univ Loja": "UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA",
+
+    # ===== UNIVERSIDAD NACIONAL DE LOJA (UNL) =====
+    "Universidad Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja (UNL)": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja. Av Pio Jaramillo ciudadela universitaria": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja UNL": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional de Loja-Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidad Nacional De Loja. Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National University of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "National Univ. of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Nacional University of Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Universidade Nacional de Loja – UNL": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacional de Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacional de Loja (UNL)": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacl Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacl Loja UNL": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Univ Nacl Loja Ecuador": "UNIVERSIDAD NACIONAL DE LOJA",
+    "Natl Univ Loja": "UNIVERSIDAD NACIONAL DE LOJA",
+	    # ===== UNIVERSIDAD DE GUAYAQUIL (UG) =====
+    "Universidad de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "University of Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Guayaquil University": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad Estatal de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad Estatal de Guayaquil (Ecuador)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil (UG)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Guayaquil University (UG)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ. de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil. Ciudadela Universitaria Salvador Allende": "UNIVERSIDAD DE GUAYAQUIL",
+    "University of Guayaquil (Ecuador)": "UNIVERSIDAD DE GUAYAQUIL",
+    "The University of Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil (Ecuador)": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil en Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil Facultad de Ciencias Psicológicas": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil-Facultad de Ciencias Naturales": "UNIVERSIDAD DE GUAYAQUIL",
+    "Facultad de Ciencias Económicas de la Universidad de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Facultad de Ciencias Médicas. Universidad de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Facultad de Ciencias Químicas. Universidad de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil. Cdla. Universitaria Salvador Allende": "UNIVERSIDAD DE GUAYAQUIL",
+    "UG Guayaquil University": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Guayaquil Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil-UG": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Guayaquil UG": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidad de Guayaquil-Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Estate Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Estatal Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "State University of Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Universidade de Guayaquil": "UNIVERSIDAD DE GUAYAQUIL",
+    "Guayaquil Univ": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Guayaquil campus Mapasingue": "UNIVERSIDAD DE GUAYAQUIL",
+    "Univ Guayaquil Republ Ecuador": "UNIVERSIDAD DE GUAYAQUIL",
+
+    # ===== UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL (UCSG) =====
+    "Universidad Católica de Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Santiago de Guayaquil (UCSG)": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Catholic University of Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Catholic University Santiago of Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Santiago de Guayaquil Catholic University": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "UCSG Universidad Católica de Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica de Santiago de Guayaquil-UCSG": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "The Universidad Católica Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Católica Santiago de Guayaquil (Ecuador)": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Santiago Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catolica Santiago de Guayaquil UCSG": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catoìlica Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica de Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catlica de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Universidad Catolica Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catol Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catol Santiago Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+    "Univ Catol Santiago de Guayaquil": "UNIVERSIDAD CATÓLICA DE SANTIAGO DE GUAYAQUIL",
+
+    # ===== UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL (ULVR) =====
+    "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Universidad Laica Vicente Rocafuerte Guayaquil ULVR": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Univ Laica VICENTE ROCAFUERTE Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Univ La Vicente Rocafuerte Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+    "Univ Vicente Rocafuerte Guayaquil": "UNIVERSIDAD LAICA VICENTE ROCAFUERTE DE GUAYAQUIL",
+
+    # ===== UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL (UTEG) =====
+    "Universidad Tecnológica Empresarial de Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil (UTEG)": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil UTEG": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil-UTEG": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial de Guayaquil: Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial del Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Universidad Tecnológica Empresarial e Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Univ Tecnol Empresarial Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Univ Tecnol Empresarial Guayaquil UTEG": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Technological Business University of Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+    "Technological and Business University of Guayaquil": "UNIVERSIDAD TECNOLÓGICA EMPRESARIAL DE GUAYAQUIL",
+
+    # ===== UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO (UEES) =====
+    "Universidad Espíritu Santo. Guayaquil": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad Espíritu Santo Guayaquil": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad de Especialidades Espíritu Santo-Guayaquil-Ecuador": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Holy Spirit University of Guayaquil Ecuador": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Universidad Espíritu Santo de Guayaquil": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Univ Especialidades Espiritu Santo Guayaquil": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+    "Univ Espiritu Santo Guayaquil": "UNIVERSIDAD DE ESPECIALIDADES ESPÍRITU SANTO",
+
+    # ===== UNIVERSIDAD DE LAS ARTES (UArtes) =====
+    "Universidad de las Artes of Guayaquil": "UNIVERSIDAD DE LAS ARTES",
+    "Univ Artes Guayaquil": "UNIVERSIDAD DE LAS ARTES",
+
+    # ===== UNIVERSIDAD CASA GRANDE =====
+    "Universidad Casa Grande de Guayaquil": "UNIVERSIDAD CASA GRANDE",
+    "Univ Casa Grande Guayaquil": "UNIVERSIDAD CASA GRANDE",
+	 # ===== ESPOL =====
+    "Escuela Superior Politecnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica del Litoral (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Facultad de Ciencias Naturales y Matemáticas. Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) – Espol": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPOL Polytechnic University Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Facultad de Ingeniería en Ciencias de la Tierra (FICT) - Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Centro del Agua y Desarrollo Sustentable (CADS) – Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Facultad de Ciencias Sociales y Humanísticas – Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)(ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESCULA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) - ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) - ESPOL University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Fac. de Ing. en Electricidad y Comp. of Escuela Superior Politecnica Del Litoral (ES-POL) University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "ESPOL Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "FIMCP Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "CIBE. Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Diseño y Comunicación Audiovisual en la Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Charles Darwin Foundation and Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnicadel Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politècnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior PolitÃľcnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnica del Litora": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnica de Litoral (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+
+    # ===== ESPOCH =====
+    "Escuela Superior Politécnica de Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica del Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica del Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Politécnica Superior de Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo ‎‎(ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "ESCUELA SUPERIOR POLITECNICA DE CHIMBORAZO": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo-Ecuador. (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo.Riobamba- Ecuador": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo Sede Morona Santiago": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH) Riobamba": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Facultad de informática y electrónica. Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Facultad de mecánica. Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH) Sede Orellana": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politechnica de Chimborazo (ESCPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politénica de Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior PolitCrossed D Sign©nica de Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica del Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politècnica de Chimborazo (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Politecnica de Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior de Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo – ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+
+    # ===== EPN =====
+    "Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "ESCUELA POLITÉCNICA NACIONAL (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politecnica National": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Poliécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (Ecuador)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional del Ecuador": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional Quito": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional EPN": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "EPN. Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (National Polytechnic School) EPN": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional Ladrón de Guevara": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico – Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico de la Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico at the Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico de la Escuela Politécnica Nacional IGEPN": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofisico de la Escuela Politecnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Department of Mathematics of Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Research Center on Mathematical Modeling (MODEMAT) - Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Matemática - Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Facultad de Ciencias Administrativas at Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Energía Eléctrica. Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico. Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional Instituto Geofísico": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+
+    # ===== ESPAM MFL =====
+    "Escuela Superior Politécnica Agropecuaria de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí “Manuel Felix López”": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí ‘MFL’": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ (ESPAM MFL)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politecnica Agropecuaria de Manabi Manuel Felix Lopez": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabi Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí Manuel Félix López (ESPAM)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM-MFL)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Agropecuaria de Manabi-Manuel Felix Lopez (ESPAM-MFL)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí „Manuel Félix López”": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí Manuel Félix López (ESPAM-MFL) Campus Limón": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí—Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+
+    # ===== USFQ =====
+    "Escuela de Odontologia Universidad San Francisco de Quito (USFQ)": "UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ)",
+    "Escuela de Odontología Universidad San Francisco de Quito": "UNIVERSIDAD SAN FRANCISCO DE QUITO (USFQ)",
+
+    # ===== UDLA (Ecuador) =====
+    "Bio-Chemoinformatics Research Group and Escuela de Ciencias Físicas y Matemáticas. Universidad de Las Américas": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+    "Escuela de Psicología y Educación. Universidad de Las Américas": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+    "Escuela de Ciencias Físicas y Matemáticas. Universidad de Las Américas": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+
+    # ===== PUCE =====
+    "Escuela de Biología de la Pontificia Universidad Católica Del Ecuador": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)",
+    "Escuela de Enfermería Pontificia Universidad Católi-ca del Ecuador": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)",
+
+    # ===== ESPE =====
+    "Escuela Politécnica del Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE",
+
+    # ===== UNAE =====
+    "ESCUELA de EDUCACIÓN BÁSICA de INNOVACIÓN UNAE": "UNIVERSIDAD NACIONAL DE EDUCACIÓN (UNAE)",
+	   "Escuela Superior Politecnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politecnica del Litoral (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politécnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) Ecuador (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) Campus Gustavo Galindo": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) - ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) - ESPOL University": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL). ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior Politcnica del Litoral": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Politecnica Superior del Litoral (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Politecnica Superior del Litoral. ESPOL": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) Facultad de Ingeniería Marítima Ciencias Biológicas": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Centro Nacional de Acuicultura e Investigaciones Marinas – Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL) (CENAIM – ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela de Diseño y Comunicación Visual (EDCOM)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Escuela de Diseño y Communicación Visual (EDCOM)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Facultad de Ciencias de la Vida Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+    "Faculty of Mechanical Engineering and Production Science Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)": "ESCUELA SUPERIOR POLITÉCNICA DEL LITORAL (ESPOL)",
+
+    # ========= ESPOCH =========
+    "Escuela Superior Politécnica de Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo. Sede Orellana": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo-Ecuador": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo. ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Medicina Facultad de Salud Pública Escuela Superior Politécnica de Chimborazo ESPOCH": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior Politécnica de Chimborazo Panamericana Sur": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Escuela Superior del Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Electrónica en la Escuela Superior ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+    "Magíster en Matemática mención en Modelación y Docencia. Ingeniera en Sistemas Informáticos. Docente en la Escuela Superior Politécnica del Chimborazo": "ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (ESPOCH)",
+
+    # ========= EPN =========
+    "Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "ESCUELA POLITÉCNICA NACIONAL (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional 170517": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional de Ecuador": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional de Ecuador (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politecnica Nacional (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (Quito": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional (Quito)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional del Ecuador (EPN)": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politecnica Nacional Del Ecuador": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politécnica Nacional Ladron de Guevera": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Escuela Politecnica Nacional Ladron de Guevara": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico - Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico — Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico ‐ Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofísico Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Instituto Geofisico Escuela Politecnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "SIGTI Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Department of Management Sciences-Escuela Politecnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Research Center on Mathematical Modeling (MODEMAT) and Departamento de Matemática - Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Matemática - Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Economía Cuantitativa Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Economía Cuantitativa de la Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Facultad de Ciencias. Escuela Politécnica Nacional (Quito": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+    "Departamento de Metalurgia Extractiva Escuela Politécnica Nacional": "ESCUELA POLITÉCNICA NACIONAL (EPN)",
+
+    # ========= ESPAM MFL =========
+    "Escuela Superior Politécnica Agropecuaria de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí «Manuel Félix López»": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí (ESPAM)": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí ESPAM": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politecnica Agropecuaria de Manabi 'Manuel Félix López'": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Carrera de Ingeniería Ambiental-Escuela Superior Politécnica Agropecuaria de Manabí Manuel Félix López": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+    "Escuela Superior Politécnica Agropecuaria de Manabí “Manuel Félix López” de Manabí": "ESCUELA SUPERIOR POLITÉCNICA AGROPECUARIA DE MANABÍ “MANUEL FÉLIX LÓPEZ” (ESPAM MFL)",
+
+    # ========= ESPE =========
+    "Escuela Politécnica del Ejército (ESPE)": "UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE",
+    "ESPE (Escuela Politécnica del Ejército)": "UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE",
+    "Departamento de Biotecnología. Escuela Politécnica del Ejército": "UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE",
+    "Escuela Superior Politécnica del Ejercito (ESPE)": "UNIVERSIDAD DE LAS FUERZAS ARMADAS – ESPE",
+
+    # ========= YACHAY TECH =========
+    "Universidad de Investigación de Tecnología Experimental Yachay – Escuela de Ciencias Biológicas e Ingeniería": "UNIVERSIDAD DE INVESTIGACIÓN DE TECNOLOGÍA EXPERIMENTAL YACHAY (YACHAY TECH)",
+
+    # ========= UDLA (Ecuador) =========
+    "Universidad de las Américas – Escuela de Medicina": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+    "Escuela de Gastronomía. Universidad de las Américas (UDLA)": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+    "Bio-Cheminformatics Research Group and Escuela de Ciencias Físicas y Matemáticas. Universidad de Las Americas": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+    "Escuela de Gastronomía Universidad de Las Américas (UDLA)": "UNIVERSIDAD DE LAS AMÉRICAS (UDLA)",
+
+    # ========= PUCE =========
+    "Escuela de Psicologia de la Pontificia Universidad Catolica del Ecuador Sede Ambato": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)",
+    "EscuelaÂ deÂ CienciasÂ AgrícolasÂ yÂ AmbientalesÂ (ECAA)Â PontificiaÂ UniversidadÂ CatólicaÂ delÂ Ecuador": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)",
+    "Pontificia Universidad Católica del Ecuador Escuela de Ciencias Biológicas": "PONTIFICIA UNIVERSIDAD CATÓLICA DEL ECUADOR (PUCE)",
+
+    # ========= UTA (Ambato) =========
+    "Docente de la Universidad Técnica de Ambato. Escuela de Medicina": "UNIVERSIDAD TÉCNICA DE AMBATO (UTA)",
+
+    # ========= UNIVERSIDAD DE CUENCA =========
+    "Docente de la Universidad de Cuenca. Escuela de Tecnología Médica. Carrera de Laboratorio Clínico": "UNIVERSIDAD DE CUENCA",
+
+    # ========= UCE (Quito) =========
+    "Escuela de Turismo de la Universidad Central del Ecuador": "UNIVERSIDAD CENTRAL DEL ECUADOR (UCE)",
+
+    # ========= UNIBE (Ecuador) =========
+    "Facultad de Salud y Bienestar Escuela de Nutrición y Dietética Universidad Iberoamericana Del Ecuador (UNIBE)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR (UNIBE)",
+    "Escuela de Nutrición y Dietética. Facultad de Salud y Bienestar. Univ. Iberoamericana del Ecuador (UNIB.E)": "UNIVERSIDAD IBEROAMERICANA DEL ECUADOR (UNIBE)",
+
 }
-# 3) Mapa en minúsculas para el lookup
-LOWER_REPLACE = {k.lower(): v for k, v in MANUAL_REPLACE.items()}
 
-# 4) Patrón regex (case-insensitive), con claves ordenadas por longitud desc
-alts = sorted(MANUAL_REPLACE.keys(), key=len, reverse=True)
-pattern = re.compile("|".join(re.escape(k) for k in alts), flags=re.IGNORECASE)
+EXACT_MAP = {norm_key(k): v for k, v in MANUAL_REPLACE.items()}
+CANONICAL_CHOICES = sorted(set(MANUAL_REPLACE.values()))
 
-def replace_manual(text: str) -> str:
-    if not isinstance(text, str):
+def normalize_token(tok: str, fuzzy_threshold: int = 92) -> str:
+    """Exacto por clave normalizada -> fuzzy por valores canónicos -> original."""
+    if not isinstance(tok, str):
+        tok = "" if tok is None else str(tok)
+    tok = tok.strip()
+    if not tok:
+        return tok
+
+    k = norm_key(tok)
+    if k in EXACT_MAP:
+        return EXACT_MAP[k]
+
+    if len(k) >= 4 and CANONICAL_CHOICES:
+        match, score, _ = process.extractOne(tok, CANONICAL_CHOICES, scorer=fuzz.WRatio)
+        if score >= fuzzy_threshold:
+            return match
+
+    return tok
+
+def normalize_affiliations(text: str) -> str:
+    """
+    - Split principal por ';'
+    - Intentar mapear el bloque completo; si no cambia y tiene coma, dividir por ',' y normalizar subpartes.
+    - Evitar duplicados por firma normalizada.
+    """
+    if not isinstance(text, str) or not text.strip():
         return text
-    def repl(m):
-        key = m.group(0).lower()
-        return LOWER_REPLACE.get(key, m.group(0))
-    return pattern.sub(repl, text)
 
-# 5) Aplicar a las columnas que quieras normalizar
-df["Affiliations_final"] = df["Affiliations"].apply(replace_manual)
-df["Authors with affiliations_final"] = df["Authors with affiliations"].apply(replace_manual)
+    out = []
+    seen = set()
 
+    # 1) primero ';'
+    for chunk in [p.strip() for p in text.split(";") if p.strip()]:
+        norm_full = normalize_token(chunk)
 
+        if norm_key(norm_full) != norm_key(chunk):
+            sig = norm_key(norm_full)
+            if sig and sig not in seen:
+                seen.add(sig)
+                out.append(norm_full)
+            continue
 
-# 9) Guarda el resultado
+        # 2) si no cambió y hay ',', desglosar
+        if "," in chunk:
+            any_mapped = False
+            for sp in [s.strip() for s in chunk.split(",") if s.strip()]:
+                norm_sp = normalize_token(sp)
+                sig = norm_key(norm_sp)
+                if sig and sig not in seen:
+                    seen.add(sig)
+                    out.append(norm_sp)
+                    if norm_key(norm_sp) != norm_key(sp):
+                        any_mapped = True
+            if any_mapped:
+                continue
+
+        # 3) si no se mapeó, conservar original (sin duplicar)
+        sig = norm_key(chunk)
+        if sig and sig not in seen:
+            seen.add(sig)
+            out.append(chunk)
+
+    return "; ".join(out)
+
+# ========== Procesar archivo ==========
+ruta = r"G:/Mi unidad/Artículos cientificos/articulo 1/datawos_scopus_affil_org_country.csv"
+df = pd.read_csv(ruta, dtype=str, keep_default_na=False, na_values=[], low_memory=False)
+
+for c in ["Affiliations", "Authors with affiliations"]:
+    if c in df.columns:
+        df[c + "_final"] = df[c].apply(normalize_affiliations)
 
 out = r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryrevisarr.csv"
-
-df.to_csv(out, index=False)
+df.to_csv(out, index=False, encoding="utf-8-sig")
 print("Resultado guardado en:", out)
-
-

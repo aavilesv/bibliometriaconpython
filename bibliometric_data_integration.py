@@ -11,7 +11,7 @@ from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
 from rapidfuzz import fuzz, process
 
 #VARIABLES 
-YEAR_START = 2004
+YEAR_START = 2014
 YEAR_FINAL = 2024
 UMBRAL = 90
 try:
@@ -82,10 +82,10 @@ try:
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
 
-    scopus_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datascopus.csv"
+    scopus_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\bloque4scopus16.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = r'G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos.xls'
+    wos_file_path = r'G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\bloque4wos10.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -194,7 +194,7 @@ try:
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus_repeatedstitles.csv"
+    output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -701,7 +701,7 @@ try:
     print(yearly_document_counts)
         # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus.csv"
+    combined_output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque4.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        
