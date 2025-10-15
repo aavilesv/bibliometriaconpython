@@ -534,9 +534,8 @@ try:
     # ——————————————————————————————————————————————————
     # Filtrar rangos de interés (2014–2024)
     # ——————————————————————————————————————————————————
-    mask_sc = scopus_df['Year'].between(2000, 2024)
-    mask_wo = wos_df['Year'].between(2000, 2024)
-
+    mask_sc = scopus_df['Year'].between(YEAR_START, YEAR_FINAL)
+    mask_wo = wos_df['Year'].between(YEAR_START, YEAR_FINAL)
     # ——————————————————————————————————————————————————
     # Conteo de artículos por año
     # ——————————————————————————————————————————————————
