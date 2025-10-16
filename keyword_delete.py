@@ -3,135 +3,124 @@ import pandas as pd
 # Cargar el archivo CSV
 #df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
 
-df = pd.read_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replace.csv")
+
+df = pd.read_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replacelematizar.csv")
    # Lista de palabras clave a eliminar (en minúsculas)
 palabras_clave_a_eliminar = [
 
-    "article","paper","publication","publications","review","literature review","systematic review",
-    "study","studies","case study","case-studies","case report","research","research papers",
-    "method","methods","methodology","methodologies","approach","approaches","model","models",
-    "framework","frameworks","protocol","protocols","process","processes","procedure","procedures",
-    "design","designs","analysis","analyses","statistical analysis","descriptive analysis",
-    "evaluation","evaluations","assessment","assessments","measurement","measurements","metrics",
-    "results","findings","discussion","conclusions","implications","introduction",
-    # instrumentos/diseños de estudio
-    "questionnaire","questionnaires","survey","surveys","focus groups","interview","interviews",
-    "open-ended questions","qualitative research","quantitative research","mixed methods",
-    "cross-sectional study","cross-sectional studies","randomized controlled trial",
-    "randomized controlled trials as topic","pretest posttest design","pilot study",
-    # etiquetas genéricas de rendimiento
-    "performance","impact","impacts","outcomes","outcome study","effectiveness","efficiency",
-    # términos administrativos
-    "management","organization","organizations","policy","policies","strategy","strategies","modeling",
-    # ruido de formato/colecciones
-    "web of science","scopus","cinahl","psycinfo","open access","openaccess","keywords",
-    # conectores / comodines temáticos
-    "technology","technologies","information","systems","services","environment","context",
-    "implementation","application","applications","factors","challenges","barriers","drivers",
-    "trends","issues","aspects","dimensions","features","characteristics","perspectives","theory",
-    "theories","conceptual framework","conceptual frameworks",
-       "united states","uk","canada","australia","spain","china","india","indonesia","saudi arabia",
-        "vietnam","malaysia","pakistan","jordan","portugal","france","germany","italy","mexico",
-        "latin america","europe","western europe","middle east","south-east asia","southeast asia",
-        "africa","sub-saharan africa","nordic countries","ireland","turkey","uae","ukraine",
-        "west bengal","kerala","karnataka","tamil nadu","jammu and kashmir","henan province",
-        "yangtze river economic belt","western china",
-            "cytotoxicity", "cytotoxicity  immunologic", "dipeptidyl carboxypeptidase inhibitor",
-    "dipeptidyl peptidase iv inhibitor", "embryonic stages", "endotracheal intubation",
-    "diabetes care", "diabetes education", "neoplasm", "neoplasms", "pneumonia  viral",
-    "drug efficacy", "drug misuse", "drug utilization", "resuscitation",
-        "frailty", "frailty prevention",
-    "functional near-infrared spectroscopy",
-    "hemoglobin a1c",
-    "histocompatibility antigens class i", "hla antigen", "hla antigens", "hla-e antigen",
-    "immunoglobulins", "immunomodulation",
-    "insulin",
-    "infectious diseases", "infectious disease medicine",
-    "inpatients", "intensive care unit", "intensive care units",
-    "hospital admission", "hospital emergency service", "hospital pharmacy",
-    "gynecologist",
-    "hydroxychloroquine", "hydrocortisone",
-    "heart surgery", "heart beats",
-    "endotracheal intubation",
-    "hydrocarbons", "gasoline",  # fuera de foco educativo/liderazgo
-    "diabetes care", "diabetes education",  # si tu foco no es salud,
-        # Tokens demasiado generales o de “relleno”
-    "key","form","forms","forum","forums","future","looking","leave",
-    "major factors","main tasks","mapping","mapping method","methods","models","mechanisms",
-    "processes","programs","research","results","losses",
-    "level management","levels of analysis",
-    "learning and teachings","learning and teaching methodologies",
-    "media","news",
-    "online environment","online channels","online products",
-    "market","business","companies","company",
-    "people","workers","students","lecturer",
-    "country","region","world",
-    "quality","efficiency",
-        # Demasiado generales/ambivalentes para co-ocurrencias útiles
-    "opportunity","operations","operations services","operation management",
-    "optimal solutions","optimal systems","optimistic","place","policies","policy",
-    "practice","practices","programs","projects","research design","research focus",
-    "recommendations","regional development","regions of russia","population","presence",
-    "ranking","requirements","representation","resources","review comments","risk factor",
-    "roadmap","roads","salary","sampling","schedule flexibility","science","season",
-    "search","second phase","selection",
-    # Ruido clínico/básico que se aleja del dominio edu/gestión/liderazgo digital
-    "ophthalmology","oral surgery","orthopedics","peptide","peptides",
-    "physiology","protein","proteins","pathogenesis","plasmodesma",
-    # Siglas/abrevs ambiguas de 2-3 letras
-    "pm","plcs","plma","psm systems",
+   "adult",
+    "male",
+    "female",
+    "human experiment",
+    "major clinical study",
+    "nurse",
+    "telemedicine",
+    "telehealth",
+    "medical informatic",
+    "primary medical care",
+    "clinical article",
+    "hospital",
+    "physician",
+    "nursing student",
+    "nurse administrator",
+    "attitude of health personnel",
+    "patient care",
+    "sar cov-2",
+    "construction industry",
+    "commerce",
+    "sale",
+    "smart city",
+    "supply chain",
+    "agriculture",
+    "biochemistry",
+    "biotechnology",
+    "chemical process",
+    "civil engineering",
+    "geology",
+    "pharmacy",
+    "physics",
+    "toxicology",
+    "environmental chemistry",
+    "epidemiology",
+    "drug therapy",
+    "virus",
+    "medical research",
+    "medicine",
+    "clinical practice",
+    "telenursing",
+    "health care access",
+    "health care planning",
+    "health data",
+    "health insurance",
+    "hospital patient",
+    "pediatric",
+    "midwife",
+    "nurse 's role",
+    "population health",
+    "public hospital",
+    "state medicine",
+    "therapy",
+    "medical care",
+    "newborn",
+    "oil and gas",
+    "manufacturing",
+    "industrial engineering",
+    "industrial management",
+    "industry professional",
+    "industrial research",
+    "gas industry",
+    "vehicle",
+    "robotic",
+    "robot",
+    "philosophical aspect",
+    "spatiotemporal analysis",
+    "genetic transcription",
+    "biotechnology",
+    "agriculture",
+    "tourism",
+    "veterinary",
+    "epidemic",
+    "epidemiology",
+    "occupational health",
+    "primary care",
+    "health-oriented leadership",
+        # Países, regiones o gentilicios
+    "england",
+    "finland",
+    "philippine",
+    "nigeria",
+    "south africa",
+    "south korea",
+    "new south wale",
+    "ontario",
+    "united kingdom",
+    "european union",
+    "developing country",
+    "local government",
+    "municipality",
+    "municipal administration",
+    "public organization",
+    "public sector",
+    "national health service",
+    "world health organization",
     
-
-
-
-      # Demasiado genéricos/ruido
-    "system","systems","structure","structures","statistics","success","strategies",
-    "study design","theoretical research","things","tool","tools","temporary","tenure",
-    "transition","translation","understanding","usage situations","users","value streams",
-    # Lugares/propios (no términos conceptuales)
-    "shandong","singapore","slovenia","southwest china","spanish iberia","uae","uk",
-    "texas","uganda","turkey","trinidad and tobago","tanzania","tripura","siberia",
-    "st  mary's college of meycauayan","st mary college of meycauayan",
-    "the university of southern mississippi","university of edinburgh",
-    "university of nebraska-lincoln","us military","united states air force",
-    # Nombres propios/marcas/entidades
-    "sitecore","petronas","telenor","twitter network","theodore roosevelt","theresa may",
-    "shuyan wang","smcm integrated student activities (sis)","smcm integrated student activity",
-    # Biomédico/clinico fuera de dominio principal
-    "simvastatin","sodium glucose cotransporter 2 inhibitor","vascular surgery",
-    "thorax radiography","thorax surgery","tumor board","psychiatry","psychiatric nurses",
-    "pediatric surgery","vascular access","therapeutic target","therapeutic research",
-    # Ambiguas/medios/ruidosas
-    "sports","sport","video games","games","speedspeed","things","season",
-    "standard versions","standard organization",
-      # Lugares / regiones / topónimos
-    "washington","west bengal","west siberia","western balkan leadership",
-    "western china","western europe","western hemisphere","western pacific region",
-    "yangtze river economic belt",
-
-    # Industrias/materiales muy específicos (ruido de dominio)
-    "zinc metallurgy","zinc mine","zinc mines","warehouses","ward",
-
-    # Nombres propios/marcas/eventos/palabras sueltas
-    "whatsapp","whatsapp messenger","zoom","wasta","wenurses","warp-pls"  # <- mantener solo en preserve
-    # Nota: aunque existan como plataformas populares, suelen sesgar co-ocurrencias temáticas
-    ,
-
-    # Demasiado genéricas/ruidosas
-    "x","weight","weight bias","wages","water flow","water movements","water supply",
-    "world-class researches","world class university","work in progress","work form",
-    "working","working systems","working life","working professionals","workers",
-    "worker","workflow","work sites","work form","forms","form",
-
-    # Biomédico/virus (fuera de foco de liderazgo virtual)
-    "virus leadership theory","virus spreading","virus theory","women's health",
-
-    # Militar/casos muy específicos
-    "warfighters",
-
-    # Taxonomías dudosas/ruido
-    "wroclow taxonomy",
-     
+    # Plataformas o redes sociales
+    "facebook",
+    "twitter",
+    "instagram",
+    "google",
+    
+    # Entidades o siglas genéricas
+    "hrm",
+    "cio",
+    "chief information officer",
+    "king salman",   # ruido institucional
+    "boston matrix",
+    "crm",           # gestión comercial
+    "stem",
+    "stem science technology engineering and mathematic",
+    "pressung",      # error OCR común en datasets
+    "moocs"          # puede mantenerse si no es foco
         
 
 ]
@@ -184,5 +173,5 @@ def filter_unique(cell):
 # Guardar el DataFrame filtrado en un nuevo archivo CSV
 #df.to_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv", index=False)
 
-df.to_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replace.csv", index=False)
+df.to_csv(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replacelematizar2.csv", index=False)
 print("Palabras clave específicas eliminadas y nuevo archivo guardado.")

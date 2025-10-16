@@ -41,9 +41,22 @@ COL_YEAR  = "year"              # if your file uses "Year"/"PY", it's detected a
 COL_DOI   = "DOI"
 COL_LABEL = "label"             # expected values: 'Relevant' / 'Irrelevant' (case-insensitive)
 
+
+# Nombres EXACTOS según tu CSV
+COL_AUTHORS      = "Author full names"
+
+COL_SOURCE       = "Source title"
+COL_CITEDBY      = "Cited by"
+COL_LINK         = "Link"
+COL_AFFILS       = "Affiliations"
+COL_AUTH_AFFILS  = "Authors with affiliations"
+COL_LANG         = "Language of Original Document"
+COL_DOCTYPE      = "Document Type"
+
+
 # Thresholds for the triage buckets (based on relevance_score)
-THRESH_RECOMMENDED = 0.60
-THRESH_BORDERLINE  = 0.45
+THRESH_RECOMMENDED = 0.55
+THRESH_BORDERLINE  = 0.40
 
 # Weights for the final score: relevance_score = W_EMBED * embed_score + W_DICT * dict_score
 W_EMBED = 0.70
@@ -216,7 +229,8 @@ def decide_bucket(score):
 df["bucket"] = df["relevance_score"].apply(decide_bucket)
 
 # Columns to export (keep common bibliographic fields first)
-order_cols = [c for c in [COL_TITLE, COL_DOI, COL_YEAR, COL_ABS, COL_KW] if c in df.columns]
+order_cols = [c for c in [ COL_TITLE, COL_DOI, COL_YEAR, COL_SOURCE, COL_CITEDBY, COL_LANG, COL_DOCTYPE,
+    COL_AUTHORS, COL_AFFILS, COL_AUTH_AFFILS, COL_LINK, COL_ABS, COL_KW] if c in df.columns]
 score_cols = ["embed_score", "dict_score", "relevance_score", "supervised_prob", "bucket"]
 export_cols = order_cols + score_cols
 
@@ -356,7 +370,7 @@ if has_labels:
 
 # ================== EXPORTS ==================
 
-x_path = OUTDIR / "article_prioritization1.xlsx"
+x_path = OUTDIR / "article_prioritization.xlsx"
 with pd.ExcelWriter(x_path, engine="openpyxl", mode="w") as w:
     df.sort_values("relevance_score", ascending=False)[export_cols].to_excel(
         w, sheet_name="All_scores", index=False

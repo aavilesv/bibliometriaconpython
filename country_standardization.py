@@ -82,9 +82,9 @@ def extract_countries_ner(text: str) -> str:
 # —————————————————————————————
 # 2) Carga y aplicación
 # —————————————————————————————
-ruta_entrada = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopus.csv"
- 
-ruta_salida = r"G:\Mi unidad\2025\master CASTRO CASTRO ARACELLY GISELLA\data\datawos_scopuscountry.csv"
+ruta_entrada = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replacelematizar.csv"
+
+ruta_salida = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopuscountry.csv"
 
 df = pd.read_csv(ruta_entrada, encoding="utf-8-sig")
 df["Texto_combinado"] = df["Affiliations"].fillna("") + " " + df["Authors with affiliations"].fillna("")

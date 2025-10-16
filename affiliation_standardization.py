@@ -4,8 +4,9 @@ from rapidfuzz import fuzz, process
 from typing import Optional   # 👈 Import necesario
 
 # 1) Leer CSV
-ruta = r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryrevisarr.csv"
-OUT = r"G:/Mi unidad/Artículos cientificos/articulo 1/_affil_org_countryfinalizar2.csv"
+ruta = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replacelematizar.csv"
+
+OUT = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusafiliation.csv"
 
 # Forzar a string para evitar DtypeWarning
 df = pd.read_csv(ruta, low_memory=False, dtype=str).fillna("")
@@ -177,6 +178,7 @@ df["Combined_universities"] = df.apply(
 total = len(df)
 vacias = int((df["Combined_universities"].str.strip() == "").sum())
 print(f"Filas: {total:,} | Vacías en Combined_universities: {vacias:,} ({vacias/max(total,1):.2%})")
-
+#df["Authors with affiliations"] = df["Affiliations"]
+#df.drop(columns=['Combined_universities'], inplace=True)
 df.to_csv(OUT, index=False, encoding="utf-8")
 print(f"📄 Guardado: {OUT}")
