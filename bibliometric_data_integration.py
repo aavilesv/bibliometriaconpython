@@ -193,6 +193,8 @@ try:
     print(f"Duplicados detectados por fuzzy: {len(similar_titles)}")
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
 
+    wos_df["In_Both"] = wos_df["processed_title"].isin(all_duplicates).astype(int)
+    scopus_df["In_Both"] = scopus_df["processed_title"].isin(all_duplicates).astype(int)
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
     output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
@@ -246,7 +248,7 @@ try:
     # --- 8) Combinar datos ---
     # Concatenar los datos de Scopus y WoS (ya procesados)
     combined_df = pd.concat([scopus_df, df_wos_renombrado], ignore_index=True)
-    # Filtrar por años (2014 a 2024)
+    # Filtrar por años (year star  a year final)
     filtro = (combined_df['Year'] >= YEAR_START) & (combined_df['Year'] <= YEAR_FINAL)
     combined_df = combined_df.loc[filtro]
     
@@ -700,7 +702,7 @@ try:
     print(yearly_document_counts)
         # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque4.csv"
+    combined_output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\datawos_scopusbloque4.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

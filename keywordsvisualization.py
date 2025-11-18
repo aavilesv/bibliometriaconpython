@@ -264,7 +264,7 @@ pd.DataFrame({"k": ks, "inertia": inertias, "silhouette": sils}).to_csv(Path(OUT
 
 # 2D
 if HAS_UMAP:
-    um = umap.UMAP(n_components=2, n_neighbors=UMAP_NN, min_dist=UMAP_MIN_DIST, random_state=SEED)
+    um = umap.UMAP(n_components=3, n_neighbors=UMAP_NN, min_dist=UMAP_MIN_DIST, random_state=SEED)
     doc_2d = um.fit_transform(doc_vecs)
 else:
     doc_2d = PCA(n_components=2, random_state=SEED).fit_transform(doc_vecs)

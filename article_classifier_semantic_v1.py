@@ -29,9 +29,9 @@ import matplotlib.pyplot as plt
 
 # ================== CONFIG ==================
 
-INPUT = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1_cleanfinalfinal.csv"
-OUTDIR = Path(r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\outputs_classifier")
-YEAR_MIN, YEAR_MAX = 2014, 2024
+INPUT = r"G:\Mi unidad\2025\Master Italo Palacios\artículo version 2\data\datawos_scopus_abstract.csv"
+OUTDIR = Path(r"G:\Mi unidad\2025\Master Italo Palacios\artículo version 2\data\outputs_classifier")
+YEAR_MIN, YEAR_MAX = 2010, 2024
 
 # Column names in your CSV (the code will try reasonable fallbacks)
 COL_TITLE = "Title"
@@ -133,26 +133,42 @@ print(f"Loaded after year-filter & dedup: {len(df)} records")
 # ================== DICTIONARY SCORING ==================
 # POSITIVE_TERMS: core topic signals aligned to your scope
 POSITIVE_TERMS = [
-    # e-leadership family
-    r"\be[-\s]?lead(er(ship)?|ing)\b", r"\bdigital leadership\b", r"\bvirtual leadership\b",
-    r"\bonline leadership\b", r"\bremote leadership\b",
-    # higher education
-    r"\bhigher education\b", r"\buniversit(y|ies)\b", r"\bcollege(s)?\b",
-    r"\btertiary education\b", r"\bhei(s)?\b",
-    # teaching/learning modalities
-    r"\bonline (teaching|learning)\b", r"\bremote (teaching|instruction)\b",
-    r"\bdistance education\b", r"\bvirtual learning\b", r"\b(hybrid|blended|hyflex) learning\b",
-    # outcomes (performance/wellbeing)
-    r"\bteacher performance\b", r"\bfaculty performance\b", r"\bacademic performance\b", r"\bjob performance\b",
-    r"\bwell[-\s]?being\b", r"\bwellbeing\b", r"\bpsychological wellbeing\b", r"\bstress\b", r"\bburnout\b",
-    r"\bjob satisfaction\b", r"\bwork engagement\b", r"\bworkload\b"
+  # Contexto urbano/institucional + arbolado
+    r"\burban (forest(ry)?|tree(s)?|greening|green infrastructure|park(s)?)\b",
+    r"\b(institutional|campus|university|school|hospital|municipal|government|corporate)\s+(tree(s)?|greening|landscape|planting)\b",
+    r"\b(tree[-\s]?planting|afforestation|reforestation|ecosystem restoration|ecological restoration|plantation forestry|silviculture)\b",
+    r"\bstreet trees?\b", r"\burban tree canopy\b", r"\bcanopy (cover|coverage|mapping)\b",
+
+    # Métricas / impactos ambientales
+    r"\b(NDVI|normalized difference vegetation index)\b",
+    r"\b(LST|land surface temperature|surface temperature)\b",
+    r"\b(urban heat island|UHI|thermal comfort|microclimate)\b",
+    r"\b(air quality|PM2\.?5|PM10|particulate matter)\b",
+    r"\b(carbon (sequestration|storage|stock(s)?|flux)|CO2|carbon footprint)\b",
+    r"\b(biodiversity|species (richness|diversity))\b",
+    r"\b(stormwater|runoff|green stormwater infrastructure|GSI|watershed management)\b",
+
+    # RS/GIS y herramientas
+    r"\b(remote sensing|satellite (imagery|data)|Sentinel[-\s]?2|Landsat|GIS|geographic information system(s)?|i[-\s]?tree( eco)?)\b",
+
+    # Implementación / gestión / gobernanza
+    r"\b(governance|policy|regulation|stakeholder(s)?|participation|community engagement)\b",
+    r"\b(payments?\s+for\s+ecosystem\s+services|PES|funding|finance|incentive(s)?)\b",
+    r"\b(maintenance|monitoring|survival (rate)?|MRV|audit(s)?)\b",
 ]
 
 # NEGATIVE_TERMS: common sources of off-topic noise
 NEGATIVE_TERMS = [
-    r"\b(se(vere)?\s*acute|influenza|covid-19|cancer|virus|clinical|patient|medical|nursing|surgery)\b",
-    r"\b(agriculture|soil|crop|geology|mining|materials|physics|chemistry|biochemistry)\b",
-    r"\b(environment(al)?|forestry|climate change|biodiversity)\b"
+    # Medicina clínica dura (fuera de salud ambiental/comunitaria)
+    r"\b(se(vere)?\s*acute|oncolog(y|ical)|cancer|tumou?r|virus|clinical|patient|surgery|nursing|ICU)\b",
+    # Dominio marino / pesquero
+    r"\b(marine|ocean(ic)?|offshore|coral|fishery|fisheries)\b",
+    # Agro productivo lejos de ciudad (mantén suelo/agua porque sí te sirven en urbano)
+    r"\b(crop(s)?|agronom(y|ic)|pasture|rangeland|farmland)\b",
+    # Química de materiales pura
+    r"\b(semiconductor|microelectronic(s)?|crystallograph(y|ic)|photovoltaic(s)?)\b",
+    # Tu ecuación excluye “invasive species”: penalizamos alineado
+    r"\b(invasive species|biological invasion)\b",
 ]
 
 POS_RX = [re.compile(p, flags=re.I) for p in POSITIVE_TERMS]
@@ -179,10 +195,11 @@ df["dict_score"] = df["combined_text"].fillna("").apply(dict_score)
 # ================== SEMANTIC SIMILARITY (EMBEDDINGS) ==================
 
 reference_texts = [
-    # These act as “queries” describing your target topic
-    "e-leadership in higher education for online and hybrid teaching",
-    "digital leadership and its effects on teachers' performance and wellbeing",
-    "virtual leadership practices supporting university faculty in remote learning environments",
+    "Urban and institutional tree planting initiatives between 2010 and 2024, combining bibliometric and systematic perspectives",
+    "Comparative analysis of urban forestry and green infrastructure programs in universities and institutional environments",
+    "Bibliometric and systematic synthesis of tree planting projects and their environmental and governance outcomes",
+    "Urban greening and tree restoration programs addressing sustainability, resilience, and climate adaptation in institutional settings"
+
 ]
 
 USE_ST = True
@@ -398,3 +415,175 @@ if len(report_txt) > 0:
 print(f"\n✅ Done. Files in: {OUTDIR}")
 print(f"   - {x_path.name}")
 print("   - article_prioritization.csv")
+
+# ================== SHORTLIST AJUSTADA (descarga) ==================
+
+def _count_matches(text, patterns):
+    return sum(bool(rx.search(text)) for rx in patterns)
+
+df["pos_hits"] = df["combined_text"].fillna("").apply(lambda s: _count_matches(s, POS_RX))
+df["neg_hits"] = df["combined_text"].fillna("").apply(lambda s: _count_matches(s, NEG_RX))
+
+# UMBRALES DE PUNTAJE (ajústalos según el volumen que quieras descargar)
+MIN_EMBED      = 0.55   # similitud semántica mínima
+MIN_DICT       = 0.35   # fuerza diccionario mínima
+MIN_POS_HITS   = 2      # mínimo de señales positivas
+ONLY_RECOMMEND = True   # exigir además bucket == "Recommended"
+
+mask_core = (
+    (df["embed_score"] >= MIN_EMBED) &
+    (df["dict_score"]  >= MIN_DICT) &
+    (df["pos_hits"]    >= MIN_POS_HITS)
+)
+if ONLY_RECOMMEND:
+    mask_core &= (df["bucket"] == "Recommended")
+
+df["recommend_download"] = mask_core
+df["download_priority"]  = np.where(df["recommend_download"], df["relevance_score"], np.nan)
+
+df["why"] = (
+    "bucket=" + df["bucket"].astype(str) +
+    "; embed=" + df["embed_score"].round(2).astype(str) +
+    "; dict=" + df["dict_score"].round(2).astype(str) +
+    "; pos_hits=" + df["pos_hits"].astype(str) +
+    "; neg_hits=" + df["neg_hits"].astype(str)
+)
+
+print("\n=== Audit shortlist ===")
+print(df["bucket"].value_counts())
+print("Recomendados (descargar):", int(df["recommend_download"].sum()))
+
+# ================== ETIQUETAS TEMÁTICAS (labels) ==================
+# Define patrones por etiqueta (puedes ampliar o ajustar a tu gusto)
+LABELS = {
+    "campus_institucional": [
+        r"\b(campus|university|universities|polytechnic|institute|school|faculty|hospital|government|municipal|corporate)\b",
+        r"\b(institutional|campus)\s+(tree|trees|planting|greening|landscape)\b",
+    ],
+    "urban_tree": [
+        r"\burban (forest(ry)?|tree(s)?|greening|green infrastructure|park(s)?)\b",
+        r"\bstreet trees?\b", r"\burban tree canopy\b", r"\bcanopy (cover|coverage|mapping)\b",
+        r"\btree[-\s]?planting\b|\b(afforestation|reforestation|ecosystem restoration|ecological restoration)\b",
+    ],
+    "rs_gis": [
+        r"\b(remote sensing|satellite (imagery|data)|Sentinel[-\s]?2|Landsat|GIS|geographic information system(s)?|i[-\s]?tree( eco)?)\b",
+    ],
+    "metrics_heat_uhi": [
+        r"\b(NDVI|normalized difference vegetation index)\b",
+        r"\b(LST|land surface temperature|surface temperature)\b",
+        r"\b(urban heat island|UHI|thermal comfort|microclimate)\b",
+        r"\b(air quality|PM2\.?5|PM10|particulate matter)\b",
+    ],
+    "carbon_biodiversity": [
+        r"\b(carbon (sequestration|storage|stock(s)?|flux)|CO2|carbon footprint)\b",
+        r"\b(biodiversity|species (richness|diversity))\b",
+    ],
+    "water_stormwater": [
+        r"\b(stormwater|runoff|green stormwater infrastructure|GSI|watershed management)\b",
+    ],
+    "governance_finance": [
+        r"\b(governance|policy|regulation|stakeholder(s)?|participation|community engagement)\b",
+        r"\b(payments?\s+for\s+ecosystem\s+services|PES|funding|finance|incentive(s)?)\b",
+        r"\b(maintenance|monitoring|survival (rate)?|MRV|audit(s)?)\b",
+    ],
+}
+
+# Compila los patrones (una vez)
+LABELS_RX = {k: [re.compile(p, flags=re.I) for p in pats] for k, pats in LABELS.items()}
+
+def match_labels(text, labels_rx=LABELS_RX):
+    text = text or ""
+    matched = []
+    for label, rx_list in labels_rx.items():
+        if any(rx.search(text) for rx in rx_list):
+            matched.append(label)
+    return matched
+
+df["labels"]    = df["combined_text"].apply(match_labels)
+df["n_labels"]  = df["labels"].apply(len)
+df["labels_str"] = df["labels"].apply(lambda xs: "; ".join(xs) if xs else "")
+
+# === CONFIGURACIÓN DE FILTRADO POR ETIQUETAS ===
+# Selecciona las etiquetas que QUIERES en la shortlist final (OR/AND)
+SELECT_LABELS = ["urban_tree", "campus_institucional"]  # <-- ajusta a tu gusto
+LABEL_MODE_AND = False  # False = OR (al menos una), True = AND (todas)
+
+# Opcional: etiquetas a excluir
+EXCLUDE_LABELS = []  # p.ej. ["water_stormwater"]
+
+def keep_by_selected(labels_found, include=SELECT_LABELS, mode_and=LABEL_MODE_AND):
+    if not include:
+        return True  # si no seleccionas nada, no restringe por etiquetas
+    s = set(labels_found)
+    inc = set(include)
+    return inc.issubset(s) if mode_and else len(s.intersection(inc)) > 0
+
+def has_excluded(labels_found, exclude=EXCLUDE_LABELS):
+    if not exclude:
+        return False
+    return len(set(labels_found).intersection(set(exclude))) > 0
+
+df["label_include_ok"] = df["labels"].apply(lambda ls: keep_by_selected(ls, SELECT_LABELS, LABEL_MODE_AND))
+df["label_exclude_hit"] = df["labels"].apply(lambda ls: has_excluded(ls, EXCLUDE_LABELS))
+
+# Shortlist combinando score + etiquetas
+df["recommend_download_by_tags"] = (
+    df["recommend_download"] &
+    df["label_include_ok"] &
+    (~df["label_exclude_hit"])
+)
+
+print("Shortlist por etiquetas (recomendados + labels):", int(df["recommend_download_by_tags"].sum()))
+
+# ================== EXPORTS (con shortlist + etiquetas) ==================
+
+x_path = OUTDIR / "article_prioritization.xlsx"
+
+order_cols = [c for c in [ COL_TITLE, COL_DOI, COL_YEAR, COL_SOURCE, COL_CITEDBY, COL_LANG, COL_DOCTYPE,
+    COL_AUTHORS, COL_AFFILS, COL_AUTH_AFFILS, COL_LINK, COL_ABS, COL_KW] if c in df.columns]
+
+score_cols = [
+    "embed_score", "dict_score", "pos_hits", "neg_hits",
+    "relevance_score", "bucket", "recommend_download",
+    "download_priority", "why",
+    "labels_str", "n_labels", "label_include_ok", "label_exclude_hit",
+    "recommend_download_by_tags", "supervised_prob"
+]
+
+export_cols = order_cols + [c for c in score_cols if c not in order_cols]
+
+sort_cols = ["recommend_download_by_tags", "recommend_download", "download_priority", "relevance_score"]
+ascending = [False, False, False, False]
+out = df.sort_values(sort_cols, ascending=ascending)
+
+with pd.ExcelWriter(x_path, engine="openpyxl", mode="w") as w:
+    # Todo
+    out[export_cols].to_excel(w, sheet_name="All_scores", index=False)
+    # Shortlist original por score
+    out[out["recommend_download"]][export_cols].to_excel(w, sheet_name="Shortlist (Download)", index=False)
+    # Shortlist filtrada por etiquetas + score
+    out[out["recommend_download_by_tags"]][export_cols].to_excel(w, sheet_name="Shortlist (Tags+Download)", index=False)
+    # Los que no pasan por etiquetas (pero sí tenían buen score)
+    hold_mask = (out["recommend_download"]) & (~out["recommend_download_by_tags"])
+    out[hold_mask][export_cols].to_excel(w, sheet_name="Hold (Score OK, sin tags)", index=False)
+    # Buckets
+    for name in ["Recommended", "Borderline", "Not_relevant"]:
+        out[out["bucket"] == name][export_cols].to_excel(w, sheet_name=name, index=False)
+
+out[export_cols].to_csv(OUTDIR / "article_prioritization.csv", index=False, encoding="utf-8")
+
+counts = df["bucket"].value_counts().to_dict()
+summary = {
+    "total_after_dedup": int(len(df)),
+    "recommended_bucket": int(counts.get("Recommended", 0)),
+    "borderline_bucket": int(counts.get("Borderline", 0)),
+    "not_relevant_bucket": int(counts.get("Not_relevant", 0)),
+    "shortlist_download_true": int(df["recommend_download"].sum()),
+    "shortlist_download_by_tags_true": int(df["recommend_download_by_tags"].sum()),
+}
+print("\nSummary:", summary)
+
+print(f"\n✅ Done. Files in: {OUTDIR}")
+print(f"   - {x_path.name}")
+print("   - article_prioritization.csv")
+
