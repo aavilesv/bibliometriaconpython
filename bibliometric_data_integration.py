@@ -13,7 +13,7 @@ from rapidfuzz import fuzz, process
 #VARIABLES 
 YEAR_START = 2014
 YEAR_FINAL = 2024
-UMBRAL = 90
+UMBRAL = 85
 try:
     # Cargar modelo de spaCy en inglés (usa el modelo en_core_web_lg)
     nlp = spacy.load('en_core_web_lg')
@@ -158,7 +158,8 @@ try:
             # DOI coincide => duplicado seguro
             doi_matches.append(wos_row['processed_title'])
 
-    # (2) Fuzzy matching para títulos
+
+    # (2) Fuzzy matching para títulos + verificación por año
     threshold_fuzzy = UMBRAL  # umbral de similitud
     similar_titles = []
 
@@ -166,26 +167,45 @@ try:
     scopus_titles_list = scopus_df['processed_title'].tolist()
 
     for idx, wos_row in wos_df.iterrows():
-        wos_title = wos_row['processed_title']
-        wos_doi = wos_row['DOI']
 
-        # Si ya se detectó duplicado por DOI, saltamos
+        wos_title = wos_row['processed_title']
+        wos_doi   = wos_row['DOI']
+
+        # Saltar si ya fue detectado por DOI
         if wos_title in doi_matches:
             continue
 
+        # Segunda verificación por DOI
         if wos_doi and wos_doi in scopus_dois:
             doi_matches.append(wos_title)
             continue
-        
-        # Fuzzy matching: retorna (best_match, score, match_index)
-        best_match, score, _ = process.extractOne(
+
+        # Fuzzy matching: retorna (best_match, score, index_en_scopus)
+        best_match, score, match_index = process.extractOne(
             wos_title,
             scopus_titles_list,
             scorer=fuzz.WRatio
         )
-        
-        if score > threshold_fuzzy:
-            similar_titles.append(wos_title)
+
+        # Si no supera el umbral → no es duplicado
+        if score <= threshold_fuzzy:
+            continue
+
+        # Obtener fila correspondiente en Scopus
+        scopus_row = scopus_df.iloc[match_index]
+
+        # Recuperar años
+        wos_year    = pd.to_numeric(wos_row.get('Publication Year', np.nan), errors='coerce')
+        scopus_year = pd.to_numeric(scopus_row.get('Year', np.nan), errors='coerce')
+
+        # Si ambos años existen, exigir que coincidan o difieran máximo en ±1
+        if pd.notna(wos_year) and pd.notna(scopus_year):
+            if abs(int(wos_year) - int(scopus_year)) > 1:
+                # diferencia demasiado grande → descartar
+                continue
+
+        # Si llega aquí → título fuzzy similar + año congruente
+        similar_titles.append(wos_title)
 
     # Combinar los duplicados encontrados
     all_duplicates = set(doi_matches + similar_titles)
