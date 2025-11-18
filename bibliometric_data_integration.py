@@ -82,10 +82,10 @@ try:
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
 
-    scopus_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\bloque4scopus16.csv"
+    scopus_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datascopus.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = r'G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\bloque4wos10.xls'
+    wos_file_path = r'G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -192,11 +192,12 @@ try:
     print(f"Duplicados detectados por DOI: {len(doi_matches)}")
     print(f"Duplicados detectados por fuzzy: {len(similar_titles)}")
     print(f"n total hay {len(scopus_df) + len(wos_df)} artículos, En total hay {len(all_duplicates)} artículos repetidos.\n")
-
+    # En WoS, todos los registros que quedan son exclusivos (0)
+    wos_df["In_Both"] = 0
     wos_df["In_Both"] = wos_df["processed_title"].isin(all_duplicates).astype(int)
     scopus_df["In_Both"] = scopus_df["processed_title"].isin(all_duplicates).astype(int)
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopus_repeatedstitles.csv"
+    output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus_repeatedstitles.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -325,7 +326,8 @@ try:
     # (Opcional) Si quieres que 'Source' nunca sea nulo:
     combined_df['Source'] = combined_df['Source'].fillna('unknown')
     combined_df['Source title'] = combined_df.apply(assign_canonical_title, axis=1)
-    
+    combined_df["In_Both"] = combined_df["In_Both"].fillna(0).astype(int)
+
 
     #combined_df['Author full names'] = combined_df['Authors']
  
@@ -475,40 +477,55 @@ try:
     sources     = ['WoS', 'Scopus']
     kept        = [final_wos_count, final_scopus_count]
     removed     = [removed_wos, removed_scopus]
-    totals      = np.array(kept) + np.array(removed)
+
+    # Total por fuente
+    totals = np.array(kept) + np.array(removed)
+
+    # ORDENAR DE MAYOR A MENOR
+    order = np.argsort(totals)[::-1]
+
+    sources  = [sources[i] for i in order]
+    kept     = [kept[i]    for i in order]
+    removed  = [removed[i] for i in order]
+    totals   = np.array(kept) + np.array(removed)
+
     pct_kept    = np.array(kept) / totals * 100
     pct_removed = np.array(removed) / totals * 100
-    
+
     fig, ax = plt.subplots(figsize=(8, 4))
-    
-    bars_kept    = ax.barh(sources, kept,    label='Kept')
+
+    bars_kept    = ax.barh(sources, kept, label='Kept')
     bars_removed = ax.barh(sources, removed, left=kept, label='Removed')
-    
+
+    # Etiquetas
     for i, (b1, b2) in enumerate(zip(bars_kept, bars_removed)):
         w1 = b1.get_width()
-        # elegir color en función del ancho
         c1 = 'white' if w1 > totals[i]*0.15 else 'black'
-        ax.text(w1/2, b1.get_y()+b1.get_height()/2,
+        ax.text(w1/2,
+                b1.get_y()+b1.get_height()/2,
                 f'{kept[i]}\n({pct_kept[i]:.1f}%)',
-                va='center', ha='center', color=c1)   # weight default (= normal)
-    
+                va='center', ha='center', color=c1)
+
         w2 = b2.get_width()
         if w2 > 0:
             c2 = 'white' if w2 > totals[i]*0.15 else 'black'
-            ax.text(kept[i] + w2/2, b2.get_y()+b2.get_height()/2,
+            ax.text(kept[i] + w2/2,
+                    b2.get_y()+b2.get_height()/2,
                     f'{removed[i]}\n({pct_removed[i]:.1f}%)',
-                    va='center', ha='center', color=c2)  # weight normal
-    
+                    va='center', ha='center', color=c2)
+
+    # --- ESTO ASEGURA QUE EL MAYOR SIEMPRE ESTÉ ARRIBA ---
+    ax.invert_yaxis()
+
     ax.set_title("Post-deduplication Distribution of Bibliometric Records\nfrom Scopus and Web of Science",
-                 weight='bold', pad=12)
-    
-    # Ejes y leyenda en peso normal (por defecto)
+                weight='bold', pad=12)
     ax.set_xlabel("Number of Articles")
     ax.legend(loc='lower right')
-    
     ax.grid(axis='x', linestyle='--', alpha=0.5)
+
     plt.tight_layout()
     plt.show()
+
     for col in ["Volume", "Page count", "PubMed ID"]:
         combined_df[col] = pd.to_numeric(combined_df[col], errors='coerce') \
                         .astype("Int64")
@@ -702,7 +719,7 @@ try:
     print(yearly_document_counts)
         # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\datawos_scopusbloque4.csv"
+    combined_output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        
