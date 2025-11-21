@@ -12,11 +12,11 @@ OUT = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_
 df = pd.read_csv(ruta, low_memory=False, dtype=str).fillna("")
 
 # ==========================================
-# 2. DICCIONARIOS Y RECURSOS
+# 2. DICCIONARIOS DE TRANSFORMACIÓN
 # ==========================================
 
-# Mapa de abreviaturas comunes en Scopus/WoS para expandirlas antes de comparar
-ABBREV_MAP = {
+# A) PARA COMPARAR (Expandimos para que el Fuzzy Match sea preciso)
+ABBREV_MAP_EXPAND = {
     r"\bUniv\b": "University",
     r"\bInst\b": "Institute",
     r"\bAcad\b": "Academy",
@@ -33,13 +33,37 @@ ABBREV_MAP = {
     r"\bColl\b": "College",
     r"\bSch\b": "School",
     r"\bMinist\b": "Ministry",
-    r"\bEnvironm\b": "Environmental",
-    r"\bMgmt\b": "Management",
-    r"\bAgric\b": "Agriculture",
-    r"\bBiol\b": "Biology",
 }
 
-# Patrones de Organización Válida (Tu lista de prioridades)
+# B) PARA GUARDAR (Comprimimos al final para ahorrar espacio)
+# Aquí definimos cómo quieres que quede escrito en el Excel
+COMPRESS_MAP_FINAL = {
+    r"\bUniversity\b": "Univ",
+    r"\bUniversit[àäa]\b": "Univ",   # Variantes de idiomas
+    r"\bUniversidad\b": "Univ",      # Español
+    r"\bInstitute\b": "Inst",
+    r"\bInstituto\b": "Inst",
+    r"\bAcademy\b": "Acad",
+    r"\bDepartment\b": "Dept",
+    r"\bDepartamento\b": "Dept",
+    r"\bLaboratory\b": "Lab",
+    r"\bLaboratorio\b": "Lab",
+    r"\bNational\b": "Natl",
+    r"\bInternational\b": "Int",
+    r"\bResearch\b": "Res",
+    r"\bCenter\b": "Ctr",
+    r"\bCentre\b": "Ctr",
+    r"\bCentro\b": "Ctr",
+    r"\bCollege\b": "Coll",
+    r"\bSchool\b": "Sch",
+    r"\bEscuela\b": "Sch",
+    r"\bTechnology\b": "Tech",
+    r"\bSciences\b": "Sci",
+    r"\bEngineering\b": "Eng",
+    r"\bManagement\b": "Mgmt",
+}
+
+# Patrones de Organización Válida
 VALID_ORG_PATTERNS = [
     re.compile(r"\buniv\w*", re.IGNORECASE),
     re.compile(r"\binst\w*", re.IGNORECASE),
@@ -60,7 +84,7 @@ VALID_ORG_PATTERNS = [
     re.compile(r"\bpolitec\w*", re.IGNORECASE),
 ]
 
-# Lista Negra (Basura)
+# Lista Negra
 TRASH_PATTERNS = [
     re.compile(r"\bstreet\b", re.IGNORECASE),
     re.compile(r"\broad\b", re.IGNORECASE),
@@ -70,7 +94,7 @@ TRASH_PATTERNS = [
     re.compile(r"\bemail\b", re.IGNORECASE),
 ]
 
-# Países y Ciudades (Para inferencia)
+# Países y Ciudades
 countries_list = [
     "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Canada", "China",
     "Chile", "Colombia", "Costa Rica", "Denmark", "Ecuador", "Egypt", "Finland", "France",
@@ -96,30 +120,33 @@ CITY_TO_COUNTRY = {
     "bogota": "Colombia", "lima": "Peru", "mexico city": "Mexico", "quito": "Ecuador",
     "canberra": "Australia", "sydney": "Australia", "melbourne": "Australia",
     "brussels": "Belgium", "geneva": "Switzerland", "moscow": "Russia", "amsterdam": "Netherlands",
-    "wageningen": "Netherlands" # Agregado por tu ejemplo específico
+    "wageningen": "Netherlands"
 }
 
-# Regex
 BRACKET_RE = re.compile(r'\[.*?\]')
 SEPARATOR_NORMALIZER = re.compile(r'[\-\|\(\)\.]+') 
 
 # ==========================================
-# 3. FUNCIONES DE LIMPIEZA Y EXTRACCIÓN
+# 3. FUNCIONES DE LIMPIEZA
 # ==========================================
 
 def expand_abbreviations(text: str) -> str:
-    """Expande Univ -> University para mejorar el Fuzzy Match."""
-    for pattern, replacement in ABBREV_MAP.items():
+    """Expande para comparar mejor (Univ -> University)"""
+    for pattern, replacement in ABBREV_MAP_EXPAND.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text
+
+def compress_final_name(text: str) -> str:
+    """Comprime para guardar (University -> Univ)"""
+    for pattern, replacement in COMPRESS_MAP_FINAL.items():
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     return text
 
 def infer_country(text: str) -> str:
     text_lower = text.lower()
-    # 1. País explícito
     for c_name in sorted(COUNTRY_MAP.keys(), key=len, reverse=True):
         if re.search(rf"\b{re.escape(c_name)}\b", text_lower):
             return COUNTRY_MAP[c_name]
-    # 2. Ciudad -> País
     for city, country in CITY_TO_COUNTRY.items():
         if re.search(rf"\b{re.escape(city)}\b", text_lower):
             return country
@@ -135,10 +162,6 @@ def clean_org_name(org: str) -> str:
     return org.strip(" ,;-")
 
 def process_affiliation_extraction(raw: str) -> list:
-    """
-    Extrae una lista de tuplas [(Org_Expandida, Org_Original, Pais), ...]
-    Nota: Retorna lista, no string, para poder deduplicar después.
-    """
     if not raw or not isinstance(raw, str): return []
 
     clean = BRACKET_RE.sub('', raw)
@@ -150,14 +173,9 @@ def process_affiliation_extraction(raw: str) -> list:
         parts = [p.strip() for p in aff_normalized.split(',') if p.strip()]
         
         found_country = infer_country(aff)
-        
-        # 🛑 REGLA DE ORO: Si no hay país, descartamos esta afiliación
-        if not found_country:
-            continue 
+        if not found_country: continue 
             
         found_org = ""
-        
-        # Buscar Organización
         for part in parts:
             if is_trash(part): continue
             
@@ -168,7 +186,6 @@ def process_affiliation_extraction(raw: str) -> list:
                     break
             
             if is_valid_org:
-                # Verificar que no sea geográfico
                 part_lower = part.lower()
                 is_geo = (part_lower in COUNTRY_MAP) or (part_lower in CITY_TO_COUNTRY) or (part_lower == found_country.lower())
                 if not is_geo:
@@ -177,83 +194,69 @@ def process_affiliation_extraction(raw: str) -> list:
         
         if found_org:
             org_clean = clean_org_name(found_org)
-            # Expandimos abreviaturas (Univ -> University) para facilitar la comparación
             org_expanded = expand_abbreviations(org_clean)
-            
-            # Guardamos: (Versión Expandida para comparar, Versión Original para mostrar, País)
             extracted_data.append({
-                "expanded": org_expanded,
-                "original": org_clean,
+                "expanded": org_expanded, # Usamos esta para comparar (Versión larga)
+                "original": org_clean,    # Usamos esta para procesar (Versión origen)
                 "country": found_country
             })
 
     return extracted_data
 
 # ==========================================
-# 4. LÓGICA DE DEDUPLICACIÓN (RAPIDFUZZ)
+# 4. DEDUPLICACIÓN Y COMPRESIÓN FINAL
 # ==========================================
 
 def deduplicate_affiliations(data_list: list) -> str:
-    """
-    Recibe lista de diccionarios, agrupa los similares y devuelve string final.
-    Ej: 'Chinese Acad Sci' y 'Chinese Academy of Sciences' -> Se queda la larga.
-    """
     if not data_list: return ""
     
     unique_orgs = []
     
     for item in data_list:
         candidate = item
-        candidate_text = candidate["expanded"] # Usamos la expandida para comparar
+        candidate_text = candidate["expanded"]
         
         matched = False
         for i, existing in enumerate(unique_orgs):
-            existing_text = existing["expanded"]
-            
-            # Comparamos si son la misma institución (mismo país, texto similar)
             if candidate["country"] == existing["country"]:
-                # Ratio alto (ej. > 85) significa que son casi iguales
-                ratio = fuzz.token_set_ratio(candidate_text, existing_text)
-                
+                # Usamos 85 para equilibrar
+                ratio = fuzz.token_set_ratio(candidate_text, existing["expanded"])
                 if ratio > 85:
                     matched = True
-                    # SI SON IGUALES, NOS QUEDAMOS CON LA MÁS LARGA (La más completa)
+                    # Nos quedamos con la versión "Original" más larga antes de comprimir
                     if len(candidate["original"]) > len(existing["original"]):
-                        unique_orgs[i] = candidate # Reemplazamos con la mejor versión
+                        unique_orgs[i] = candidate
                     break
         
         if not matched:
             unique_orgs.append(candidate)
             
-    # Construir string final
-    final_strings = [f"{item['original']}, {item['country']}" for item in unique_orgs]
+    # AQUÍ OCURRE LA MAGIA: Comprimimos los nombres seleccionados
+    final_strings = []
+    for item in unique_orgs:
+        # Tomamos el nombre (sea cual sea que haya ganado) y lo comprimimos
+        short_name = compress_final_name(item['original'])
+        final_strings.append(f"{short_name}, {item['country']}")
+        
     return "; ".join(final_strings)
 
 # ==========================================
-# 5. EJECUCIÓN MAESTRA
+# 5. EJECUCIÓN
 # ==========================================
 
-print("⏳ Procesando: Extracción Estricta + Deduplicación Fuzzy...")
+print("⏳ Procesando: Extracción -> Deduplicación -> Estandarización (Univ)...")
 
-# 1. Combinar columnas
 df['Raw_Text'] = df['Affiliations'] + ";" + df['Authors with affiliations']
-
-# 2. Paso A: Extraer datos crudos (Lista de objetos)
-#    Esto nos da una lista temporal en cada celda
 temp_extracted = df['Raw_Text'].apply(process_affiliation_extraction)
-
-# 3. Paso B: Deduplicar y formatear a texto
 df['Combined_universities'] = temp_extracted.apply(deduplicate_affiliations)
 
-# Métricas
 total = len(df)
 llenas = df['Combined_universities'].replace("", pd.NA).count()
-print(f"✅ Procesado. Filas válidas (con País): {llenas} de {total}")
+print(f"✅ Filas válidas: {llenas} de {total}")
 
-# Guardar
 df["Affiliations"] = df["Combined_universities"]
 df["Authors with affiliations"] = df["Combined_universities"]
 df.drop(columns=['Combined_universities', 'Raw_Text'], inplace=True, errors='ignore')
 
 df.to_csv(OUT, index=False, encoding="utf-8")
-print(f"📄 Archivo limpio guardado: {OUT}")
+print(f"📄 Archivo guardado: {OUT}")

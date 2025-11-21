@@ -4,10 +4,9 @@ from rapidfuzz import fuzz, process
 from typing import Optional   # 👈 Import necesario
 
 # 1) Leer CSV
-ruta = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusbloque1replacelematizar.csv"
 
-OUT = r"G:\Mi unidad\2025\Master MIOSSOTTY KATHERINE NARANJO KEAN CHONG\articulo 2\data final\datawos_scopusafiliation.csv"
-
+ruta =  r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1replacelematizar.csv"
+OUT =  r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusafiliation.csv"
 # Forzar a string para evitar DtypeWarning
 df = pd.read_csv(ruta, low_memory=False, dtype=str).fillna("")
 
@@ -78,12 +77,12 @@ def normalize_cell(raw: str) -> str:
     return '; '.join(norm)
 
 # Aplicar normalización
-df['Affiliations_final'] = df['Affiliations_final'].apply(normalize_cell)
-df['Authors with affiliations_final'] = df['Authors with affiliations_final'].apply(normalize_cell)
+df['Affiliations'] = df['Affiliations'].apply(normalize_cell)
+df['Authors with affiliations'] = df['Authors with affiliations'].apply(normalize_cell)
 
 # ================== COLUMNAS ==================
-COL_A = "Affiliations_final"
-COL_B = "Authors with affiliations_final"
+COL_A = "Affiliations"
+COL_B = "Authors with affiliations"
 
 # ================== UMBRAL DE-DUPE ==================
 DEDUPE_THRESHOLD = 98
@@ -96,23 +95,11 @@ PRIORITY_PATTERNS = [
     re.compile(r"^\s*school\w*", re.IGNORECASE),
     re.compile(r"^\s*college\b", re.IGNORECASE),
     re.compile(r"^\s*acad(?:emia\w*|emy\w*)", re.IGNORECASE),
-    re.compile(r"^\s*fac(?:ultad\w*|ulty\w*)", re.IGNORECASE),
-    re.compile(r"^\s*muse(?:o|um)\w*", re.IGNORECASE),
-    re.compile(r"^\s*hosp\w*", re.IGNORECASE),
-    re.compile(r"^\s*cent(?:er|re|ro|rum)?\w*", re.IGNORECASE),
-    re.compile(r"^\s*clin\w*", re.IGNORECASE),
+
     re.compile(r"^\s*minist(?:erio\w*|ry\w*)", re.IGNORECASE),
-    re.compile(r"^\s*lab\w*", re.IGNORECASE),
-    re.compile(r"^\s*observ\w*", re.IGNORECASE),
+
     re.compile(r"^\s*fund(?:acion\w*|aci[oó]n\w*|ation\w*)", re.IGNORECASE),
     re.compile(r"^\s*corp\w*", re.IGNORECASE),
-    re.compile(r"^\s*gov\w*", re.IGNORECASE),
-    re.compile(r"^\s*auth\w*", re.IGNORECASE),
-    re.compile(r"^\s*cons\w*", re.IGNORECASE),
-    re.compile(r"^\s*serv\w*", re.IGNORECASE),
-    re.compile(r"^\s*(?:depart\w*|dept\b|dep\b)", re.IGNORECASE),
-    re.compile(r"^\s*flac\w*", re.IGNORECASE),
-    re.compile(r"^\s*investig\w*", re.IGNORECASE),
 ]
 
 def pick_primary_org(fragment: str) -> Optional[str]:   # 👈 corregido
@@ -178,7 +165,7 @@ df["Combined_universities"] = df.apply(
 total = len(df)
 vacias = int((df["Combined_universities"].str.strip() == "").sum())
 print(f"Filas: {total:,} | Vacías en Combined_universities: {vacias:,} ({vacias/max(total,1):.2%})")
-#df["Authors with affiliations"] = df["Affiliations"]
-#df.drop(columns=['Combined_universities'], inplace=True)
+df["Authors with affiliations"] = df["Affiliations"]
+df.drop(columns=['Combined_universities'], inplace=True)
 df.to_csv(OUT, index=False, encoding="utf-8")
 print(f"📄 Guardado: {OUT}")
