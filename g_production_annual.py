@@ -11,8 +11,8 @@ mean_tc = np.array([61.73, 57.80, 60.19, 74.33, 60.44, 65.84, 69.81, 65.31, 67.2
 n_articles = np.array([62, 59, 72, 82, 78, 105, 133, 163, 181, 48, 54])
 
 # --- 3. COLORES ---
-color_bar = '#4682B4' 
-color_line = '#D2222D'
+color_bar = '#1f77b4' 
+color_line = '#ff7f0e'
 
 # --- 4. CREAR LA FIGURA (CAMBIO AQUÍ) ---
 # Cambié dpi=300 a dpi=120 para que NO se vea gigante en tu pantalla.
