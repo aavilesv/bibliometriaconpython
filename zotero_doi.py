@@ -11,8 +11,8 @@ import requests
 from urllib.parse import quote
 
 # === CONFIGURACIÓN ZOTERO ===
-API_KEY = "URysNjB8GswoQDUjM4I6Kd9p"  # <--- TU API KEY
-USER_ID = "10438425"                  # <--- TU USER ID
+API_KEY = "3"  # <--- TU API KEY
+USER_ID = "3"                  # <--- TU USER ID
 LIBRARY_TYPE = "user"                 # "user" para biblioteca personal, "group" para grupo
 
 # === TUS DOIS ===
