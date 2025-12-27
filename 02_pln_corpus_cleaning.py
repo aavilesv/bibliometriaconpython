@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+
 SCRIPT 02: CLASIFICADOR PRO (NIVELES DE PRIORIDAD)
 --------------------------------------------------
 - Elimina filas sin Abstract (Robustez garantizada).
@@ -14,7 +15,7 @@ from pathlib import Path
 import sys
 
 # ================= CONFIGURACIÓN =================
-INPUT_FILE = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1_cleanfinal.csv"
+INPUT_FILE = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1_cleanfinal2.csv"
 OUTPUT_DIR = Path(r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\outputs_classifier")
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
@@ -23,35 +24,58 @@ COL_TEXT_CLEAN = "text_clean"
 COL_ABS_ORIG   = "Abstract"  # Para verificar que no esté vacío
 
 # Pesos (80% IA / 20% Diccionario)
-W_EMBED = 0.80
-W_DICT  = 0.20
+W_EMBED = 0.70
+W_DICT  = 0.30
 
 # ================= DEFINICIÓN DEL TEMA (Gobernanza y Derecho) =================
-REFERENCE_TEXTS = [
-    "Polycentric and multilevel governance systems addressing climate change adaptation through transnational networks.",
-    "The fragmentation of international environmental law and the evolution of soft law into hard law frameworks.",
-    "The intersection of human rights litigation and climate justice in international courts.",
-    "Epistemic communities and the influence of technoscientific evidence on global environmental policy-making.",
-    "Challenges in regulatory efficacy, compliance mechanisms, and the normative impact of the Paris Agreement."
-]
 
+REFERENCE_TEXTS = [
+    # 1. Gobernanza Compleja (RQ4)
+    "Polycentric and multilevel governance systems addressing climate change adaptation through transnational networks and non-state actors.",
+    
+    # 2. Evolución Legal y Principios (RQ1 - CRUCIAL)
+    "The reconfiguration of international environmental law principles, specifically equity, precaution, and common but differentiated responsibilities.",
+    
+    # 3. Justicia y Derechos Humanos (RQ1/RQ3)
+    "The intersection of human rights litigation, climate justice, and intergenerational equity in international courts.",
+    
+    # 4. Ciencia y Política (RQ2/RQ4)
+    "Epistemic communities and the influence of scientific evidence on global environmental policy-making and treaty design.",
+    
+    # 5. Cumplimiento y Brechas (RQ3)
+    "Challenges in regulatory efficacy, compliance mechanisms, and the normative impact of the Paris Agreement on state obligations."
+]
 POSITIVE_TERMS = [
+    # --- Conceptos Generales ---
     r"\binternational (environmental )?law\b", r"\bglobal governance\b", r"\bclimate governance\b",
     r"\bparis agreement\b", r"\bunfccc\b", r"\bkyoto protocol\b", r"\btreat(y|ies)\b",
+    
+    # --- Justicia y Litigio ---
     r"\bhuman rights\b", r"\bclimate justice\b", r"\blitigation\b", r"\bcourts?\b", 
-    r"\brights of nature\b", r"\bprocedural justice\b",
+    r"\brights of nature\b", r"\bprocedural justice\b", r"\bdistributive justice\b",
+    r"\bclimate refugees?\b", r"\bjust transition\b", # Nuevo (Script 1)
+    
+    # --- Teoría Legal y Principios (RQ1) ---
     r"\bsoft law\b", r"\bhard law\b", r"\blegal framework\b", r"\bregulatory\b", 
     r"\bnormative\b", r"\bfragmentation\b", r"\bcompliance\b",
+    r"\bprecautionary principle\b", r"\bpolluter pays\b", # Nuevo
+    r"\bcommon but differentiated\b", r"\bcbdr\b", # Nuevo (Clave RQ1)
+    r"\bintergenerational equity\b", r"\bsustainable development\b",
+    r"\bno harm rule\b", r"\bduty to cooperate\b",
+    
+    # --- Gobernanza y Mecanismos (RQ3) ---
     r"\bpolycentric\b", r"\bmultilevel\b", r"\badaptive governance\b", 
-    r"\bepistemic\b", r"\btechno[\-\s]?scientific\b", r"\bnon[\-\s]state actors\b"
+    r"\bepistemic\b", r"\btechno[\-\s]?scientific\b", r"\bnon[\-\s]state actors\b",
+    r"\bregime complex\b", r"\bloss and damage\b", r"\bndcs?\b", # Nuevos
+    r"\bnet zero\b", r"\bdecarbonization\b", r"\bgeoengineering\b"
 ]
 
 NEGATIVE_TERMS = [
     r"\bchemical engineering\b", r"\bmolecular biology\b", r"\bclinical trial\b",
     r"\bpatient\b", r"\bsurgery\b", r"\bpolymer\b", r"\balgorithm optimization\b",
-    r"\bwireless sensor network\b", r"\bcrop yield\b", r"\bsoil chemistry\b"
+    r"\bwireless sensor network\b", r"\bcrop yield\b", r"\bsoil chemistry\b",
+    r"\brenewable energy storage\b", r"\bphotovoltaic\b", r"\bbiomass production\b" # Agregados para seguridad
 ]
-
 # ================= CARGA DE MODELO =================
 print("⏳ Cargando Modelo MPNet...")
 try:
@@ -84,7 +108,7 @@ def get_dictionary_score(text):
 
 def classify_article(score):
     """Tu sistema de clasificación solicitado"""
-    if score >= 0.80: return "🔥 ALTA RELEVANCIA"
+    if score >= 0.75: return "🔥 ALTA RELEVANCIA"
     if score >= 0.65: return "✅ MEDIA RELEVANCIA"
     if score >= 0.50: return "⚠️ BAJA RELEVANCIA"
     return "❌ DESCARTAR"
@@ -130,6 +154,7 @@ def main():
         "Source title", "Author full names", "Affiliations", 
         "Document Type", "Cited by", "Keywords Unified"
     ]
+    
     for c in requested_cols:
         if c not in df.columns:
             df[c] = "" # Rellenar vacíos si falta alguna
@@ -144,7 +169,7 @@ def main():
     df_sorted = df.sort_values(by='FINAL_SCORE', ascending=False)
 
     # 5. EXPORTACIÓN
-    excel_path = OUTPUT_DIR / "SELECCION_FINAL_ROBUSTAfinal.xlsx"
+    excel_path = OUTPUT_DIR / "SELECCION_FINAL_ROBUSTAfinal3.xlsx"
     print("💾 Generando Excel ordenado...")
 
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
@@ -152,11 +177,11 @@ def main():
         summary = df['DECISION'].value_counts().to_frame("Total Artículos")
         summary.to_excel(writer, sheet_name='Resumen')
 
-        # Hoja 2: ALTA RELEVANCIA (0.8 - 1.0) -> Lo mejor de lo mejor
+        # Hoja 2: ALTA RELEVANCIA (0.75 - 1.0) -> Lo mejor de lo mejor
         high = df_sorted[df_sorted['DECISION'] == "🔥 ALTA RELEVANCIA"]
         high[report_cols].to_excel(writer, sheet_name='1_ALTA_PRIORIDAD', index=False)
         
-        # Hoja 3: MEDIA RELEVANCIA (0.65 - 0.79) -> Muy buenos
+        # Hoja 3: MEDIA RELEVANCIA (0.65 - 0.74) -> Muy buenos
         mid = df_sorted[df_sorted['DECISION'] == "✅ MEDIA RELEVANCIA"]
         mid[report_cols].to_excel(writer, sheet_name='2_MEDIA_PRIORIDAD', index=False)
 

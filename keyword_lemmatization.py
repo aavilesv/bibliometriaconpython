@@ -20,12 +20,12 @@ import spacy
 # ==========================================
 # 1. CONFIGURACIÓN
 # ==========================================
+#df = pd.read_csv("G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv")
+INPUT_CSV   = r"G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
+OUTPUT_CSV  = r"G:\\Mi unidad\\2024\\SCientoPy\\ScientoPy\\dataPre\\papersPreprocessed.csv"
+CHANGE_LOG  = r"G:\\Mi unidad\\papersPreprocesseloh.csv"
 
-INPUT_CSV   = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopuscorreci.csv"
-OUTPUT_CSV  = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1replacelematizar.csv"
-CHANGE_LOG  = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\02_lemmatize_canonize_log.csv"
-
-KW_COLS     = ["Author Keywords", "Index Keywords"]
+KW_COLS     = ["bothKeywords"]
 
 # Cargar Spacy (asegúrate de tenerlo instalado: python -m spacy download en_core_web_sm)
 try:
@@ -41,77 +41,94 @@ except OSError:
 
 # Mantenemos tu lista completa, pero formateada correctamente para evitar errores
 EXCEPTION_PHRASES = {
-    # --- TÉRMINOS GENERALES ---
-    "data", "e-leadership", "digital leadership", "virtual leadership", "transformational leadership",
-    
-    # --- ENTIDADES / PAÍSES ---
-    "china", "united states", "brazil", "canada", "india", "australia",
-    "latin america", "european union", "africa", "arctic", "new zealand",
-    "pacific islands", "amazonia", "ecuador", "asia", "global south",
-    "germany", "chile", "peru", "indonesia", "oecd countries",
+ 
+    # ===== SIGLAS / ACRÓNIMOS =====
+    "AI", "ML", "NLP", "ICT", "ICTs", "LLM", "LLMs",
+    "AIEd", "GenAI", "GPT", "GPT-3", "UTAUT", "UTAUT2",
+    "TAM", "PLS-SEM", "SEM", "TF-IDF", "LSTM",
+    "KNN", "SVM", "XgBoost", "WEKA",
 
-    # --- ORGANISMOS ---
-    "united nations", "united nations framework convention on climate change",
-    "unfccc", "ipcc", "ipbes", "intergovernmental panel", "unep", "world polity",
+    # ===== MODELOS / ALGORITMOS =====
+    "Random Forest", "Random Forests",
+    "Support Vector Machine", "Support Vector Machines",
+    "Decision Tree", "Decision Trees",
+    "Neural Networks", "Artificial Neural Networks",
+    "Convolutional Neural Network", "Convolutional Neural Networks",
+    "Deep Neural Network",
+    "Naïve Bayes",
+    "Adaptive Boosting",
+    "Genetic Algorithm", "Genetic Algorithms",
+    "Reinforcement Learning",
+    "Self-supervised Learning",
+    "Supervised Learning",
+    "Unsupervised Learning",
+    "Transfer Learning",
+    "Federated Learning",
+    "Contrastive Learning",
+    "Clustering",
+    "Classification",
+    "Regression",
+    "Logistic Regression",
 
-    # --- TRATADOS ---
-    "paris agreement", "kyoto protocol", "montreal protocol",
-    "convention on biological diversity", "stockholm convention", "agenda 2030",
+    # ===== FRAMEWORKS / TEORÍAS =====
+    "Technology Acceptance Model",
+    "Unified Theory of Acceptance and Use of Technology",
+    "Theory of Planned Behavior",
+    "Task-Technology Fit",
+    "SELF-DETERMINATION THEORY",
+    "Community of Inquiry",
+    "TPACK",
 
-    # --- SIGLAS (Protegidas de lematización) ---
-    "redd+", "cdm", "sdgs", "sdg", "co2", "ghg", "ngos", "oecd",
+    # ===== HERRAMIENTAS / PLATAFORMAS =====
+    "ChatGPT", "Chat GPT",
+    "OpenAI",
+    "VOSviewer",
+    "SCOPUS",
+    "MOOCs",
+    "LMS",
+    "Learning Management System",
+    "Learning Management Systems",
+    "Internet of Things", "IoT",
 
-    # --- CONCEPTOS JURÍDICOS ---
-    "international environmental law", "environmental law", "administrative law",
-    "procedural justice", "human rights", "indigenous rights", "rights of nature",
-    "right to a healthy environment", "soft law", "hard law", 
-    "public policy", "environmental impact assessment",
+    # ===== ÁREAS / CONCEPTOS TÉCNICOS FIJOS =====
+    "Artificial Intelligence",
+    "Machine Learning",
+    "Deep Learning",
+    "Generative Artificial Intelligence",
+    "Large Language Models",
+    "Natural Language Processing",
+    "Educational Data Mining",
+    "Learning Analytics",
+    "Explainable Artificial Intelligence",
+    "Computer Vision",
+    "Sentiment Analysis",
+    "Text Mining",
+    "Data Mining",
+    "Predictive Analytics",
+    "Business Intelligence",
 
-    # --- MODELOS ---
-    "porter hypothesis", "environmental kuznets curve", "stirpat model",
-    "q methodology", "difference in differences", "panel data",
-    "time series", "conceptual framework",
+    # ===== EDUCACIÓN / SISTEMAS ESPECÍFICOS =====
+    "Higher Education",
+    "Higher Education Institutions",
+    "Universities",
+    "Education 4.0",
+    "Industry 4.0",
+    "Industry 5.0",
+    "Intelligent Tutoring Systems",
+    "Virtual Reality",
+    "Augmented Reality",
+    "Blockchain",
+    "Metaverse",
 
-    # --- GOBERNANZA ---
-    "global environmental governance", "multilevel governance", "adaptive governance",
-    "collaborative governance", "polycentric governance", "climate governance",
-    "environmental governance", "transnational governance", "urban governance",
-    "network governance", "co-management", "co production", "co-production",
+    # ===== ESTÁNDARES / MÉTRICAS =====
+    "Accuracy",
+    "Quality Assurance",
+    "Quality Control",
 
-    # --- CIENCIA ---
-    "science-policy interface", "science-policy", "literature review",
-    "boundary organizations", "epistemic communities",
-
-    # --- AMBIENTAL (NO LEMATIZAR) ---
-    "climate change", "climate change adaptation", "climate change mitigation",
-    "climate adaptation", "climate migration", "climate justice", "climate risk",
-    "global change", "global climate", "air pollution",
-    "carbon emissions", "carbon dioxide emissions", "carbon footprint",
-    "greenhouse gas emissions", "biodiversity", "ecosystem services",
-    "deforestation", "renewable energy", "sustainable development",
-    "sustainable development goals", "ecosystem based management",
-    "land use change", "nature based solutions", "marine biodiversity",
-    "ocean acidification",
-
-    # --- ECONOMÍA ---
-    "carbon market", "carbon tax", "carbon intensity", "emissions trading",
-    "emissions trading scheme", "cap-and-trade", "market environmentalism",
-    "financial performance", "foreign direct investment",
-
-    # --- TEORÍA ---
-    "political ecology", "neoliberalism", "anthropocene", "authoritarian environmentalism",
-    "ecological modernization", "social learning", "collective action",
-    "institutional theory", "resilience thinking",
-
-    # --- DERECHO INTERNACIONAL ---
-    "law of the sea", "international law", "international cooperation",
-    "international agreement", "international environmental agreements",
-    "international governance", "international legal framework", "international trade",
-
-    # --- VARIOS ---
-    "big data", "boundary objects", "convention", "partition", 
-    "urban areas", "urban sustainability", "smart cities", "food security",
-    "forest management", "environmental justice", "environmental protection"
+    # ===== NOMBRES GEOGRÁFICOS / PROPIOS =====
+    "China", "India", "United States", "United Kingdom",
+    "Saudi Arabia", "Australia", "Canada", "Germany",
+    "Romania", "Thailand", "e-learning",
 }
 
 # Palabras que Spacy a veces identifica mal como verbos o plurales y no debería tocar

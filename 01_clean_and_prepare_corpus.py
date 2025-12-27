@@ -19,7 +19,7 @@ import sys
 # ================= CONFIGURACIÓN =================
 INPUT   = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1replacelematizar.csv"
 # Generamos el nombre de salida automáticamente basado en el input
-OUTPUT_CSV = str(Path(INPUT).parent / "datawos_scopusbloque1_cleanfinal.csv")
+OUTPUT_CSV = str(Path(INPUT).parent / "datawos_scopusbloque1_cleanfinal2.csv")
 
 COL_TITLE = "Title"
 COL_ABS   = "Abstract"
@@ -28,23 +28,52 @@ COL_AUTHK = "Author Keywords"
 SPACY_MODEL = "en_core_web_sm"
 
 # ================= LISTAS DE PROTECCIÓN (DERECHO/GOBERNANZA) =================
+# Esta lista protege n-gramas para que Spacy los trate como UN SOLO concepto.
+# Alineada con RQs: 1 (Principios), 3 (Gobernanza/Brechas) y 4 (Temas).
+
 EXCEPTION_PHRASES = [
-    # Entidades
+    # --- 1. Actores y Geopolítica ---
     "china", "united states", "brazil", "canada", "india", "australia", "european union",
-    # Organismos
+    "global south", "global north", "small island developing states", "sids",
+
+    # --- 2. Organismos y Régimen Climático ---
     "united nations", "unfccc", "ipcc", "ipbes", "unep", "world polity",
-    # Tratados
+    "international court of justice", "human rights council",
+    
+    # --- 3. Tratados e Instrumentos (Hard & Soft Law) ---
     "paris agreement", "kyoto protocol", "montreal protocol", "agenda 2030",
-    # Jurídico
-    "international environmental law", "environmental law", "administrative law", 
-    "procedural justice", "human rights", "rights of nature", "soft law", "hard law",
-    # Gobernanza
+    "escazu agreement", "aarhus convention", "warsaw mechanism",
+    
+    # --- 4. Derecho y Principios (Responde a RQ1) ---
+    "international environmental law", "environmental law", "administrative law",
+    "precautionary principle", "preventive principle", 
+    "polluter pays principle", "no harm rule",
+    "common but differentiated responsibilities", "cbdr", # Clave para Equidad
+    "intergenerational equity", "sustainable development",
+    "common concern of humankind", "public trust doctrine",
+    "duty to cooperate", "international cooperation", # Clave para Cooperación (RQ1)
+    
+    # --- 5. Gobernanza y Tensiones Institucionales (Responde a RQ3) ---
     "global environmental governance", "multilevel governance", "adaptive governance", 
     "polycentric governance", "climate governance", "transnational governance",
-    # Ambiental
-    "climate change", "climate justice", "climate risk", "global warming",
-    "biodiversity", "ecosystem services", "sustainable development goals"
+    "regime complex", "institutional fragmentation", "normative fragmentation", # Clave RQ3
+    "compliance mechanisms", "dispute settlement",
+    
+    # --- 6. Justicia y Nuevas Tendencias (Responde a RQ4) ---
+    "climate change", "global warming", 
+    "climate justice", "procedural justice", "distributive justice",
+    "climate litigation", "rights of nature", "human rights",
+    "climate refugees", "climate migration", "loss and damage",
+    "just transition", "net zero", "decarbonization",
+    "geoengineering", "solar radiation management",
+    "corporate social responsibility", "esg"
 ]
+
+STOP_EXTRA = {
+    "et","al","figure","fig","table","study","paper","using","use","based",
+    "method","analysis","findings","introduction","discussion","data","research",
+    "result","results","conclusion","author","review" # Agregué un par más comunes
+}
 
 STOP_EXTRA = {
     "et","al","figure","fig","table","study","paper","using","use","based",

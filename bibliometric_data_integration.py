@@ -11,8 +11,8 @@ from spacy.lang.en.stop_words import STOP_WORDS  # Stopwords en inglés
 from rapidfuzz import fuzz, process
 
 #VARIABLES 
-YEAR_START = 2014
-YEAR_FINAL = 2024
+YEAR_START = 2015
+YEAR_FINAL = 2025
 UMBRAL = 85
 try:
     # Cargar modelo de spaCy en inglés (usa el modelo en_core_web_lg)
@@ -82,10 +82,10 @@ try:
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
 
-    scopus_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datascopus.csv"
+    scopus_file_path = r"G:\Mi unidad\bibliometric_review\FILES\SCOPUS\scopus_export_Dec 23-2025_2ed8d955-0705-42b8-b41b-cbbb58a08991.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = r'G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos.xls'
+    wos_file_path = r'G:\Mi unidad\bibliometric_review\FILES\WOS\savedrecs1000.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -217,7 +217,7 @@ try:
     wos_df["In_Both"] = wos_df["processed_title"].isin(all_duplicates).astype(int)
     scopus_df["In_Both"] = scopus_df["processed_title"].isin(all_duplicates).astype(int)
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus_repeatedstitles.csv"
+    output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus_repeatedstitless.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -739,7 +739,7 @@ try:
     print(yearly_document_counts)
         # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus.csv"
+    combined_output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusfinal.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

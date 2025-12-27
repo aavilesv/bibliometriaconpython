@@ -1,259 +1,137 @@
-import pandas as pd
-import re
-from rapidfuzz import fuzz, process
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # ==========================================
-# 1. CONFIGURACIÓN
-# ==========================================
-ruta = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusbloque1replacelematizar.csv"
-OUT = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusafiliation.csv"
-
-# Cargar datos
-df = pd.read_csv(ruta, low_memory=False, dtype=str).fillna("")
-
-# ==========================================
-# 2. DICCIONARIOS Y RECURSOS
+#   PANEL DE CONTROL
 # ==========================================
 
-# Mapa de abreviaturas comunes en Scopus/WoS para expandirlas antes de comparar
-ABBREV_MAP = {
-    r"\bUniv\b": "University",
-    r"\bInst\b": "Institute",
-    r"\bAcad\b": "Academy",
-    r"\bSci\b": "Sciences",
-    r"\bTech\b": "Technology",
-    r"\bEng\b": "Engineering",
-    r"\bDept\b": "Department",
-    r"\bLab\b": "Laboratory",
-    r"\bNatl\b": "National",
-    r"\bInt\b": "International",
-    r"\bRes\b": "Research",
-    r"\bCtr\b": "Center",
-    r"\bCent\b": "Center",
-    r"\bColl\b": "College",
-    r"\bSch\b": "School",
-    r"\bMinist\b": "Ministry",
-    r"\bEnvironm\b": "Environmental",
-    r"\bMgmt\b": "Management",
-    r"\bAgric\b": "Agriculture",
-    r"\bBiol\b": "Biology",
-}
+ANCHO = 16
+ALTO = 26  # Altura segura
 
-# Patrones de Organización Válida (Tu lista de prioridades)
-VALID_ORG_PATTERNS = [
-    re.compile(r"\buniv\w*", re.IGNORECASE),
-    re.compile(r"\binst\w*", re.IGNORECASE),
-    re.compile(r"\bminist\w*", re.IGNORECASE),
-    re.compile(r"\bcourt\w*", re.IGNORECASE),
-    re.compile(r"\btribunal\w*", re.IGNORECASE),
-    re.compile(r"\bschool\w*", re.IGNORECASE),
-    re.compile(r"\bfacul\w*", re.IGNORECASE),
-    re.compile(r"\bcolleg\w*", re.IGNORECASE),
-    re.compile(r"\bacad\w*", re.IGNORECASE),
-    re.compile(r"\bcouncil\w*", re.IGNORECASE),
-    re.compile(r"\bcommis\w*", re.IGNORECASE),
-    re.compile(r"\bagenc\w*", re.IGNORECASE),
-    re.compile(r"\bcent(?:er|re|ro|rum)\b", re.IGNORECASE),
-    re.compile(r"\blab\w*", re.IGNORECASE),
-    re.compile(r"\borg\w*", re.IGNORECASE),
-    re.compile(r"\bassoc\w*", re.IGNORECASE),
-    re.compile(r"\bpolitec\w*", re.IGNORECASE),
-]
+# POSICIONES
+POS_IZQ = 5.0      # Columna Izquierda (Flujo principal)
+POS_DER = 11.0     # Columna Derecha (Exclusiones)
+ANCHO_CAJA = 4.5
+BYPASS_X = 14.5    # Línea vertical derecha
 
-# Lista Negra (Basura)
-TRASH_PATTERNS = [
-    re.compile(r"\bstreet\b", re.IGNORECASE),
-    re.compile(r"\broad\b", re.IGNORECASE),
-    re.compile(r"\bbox\b", re.IGNORECASE),
-    re.compile(r"\bavenue\b", re.IGNORECASE),
-    re.compile(r"@", re.IGNORECASE),
-    re.compile(r"\bemail\b", re.IGNORECASE),
-]
-
-# Países y Ciudades (Para inferencia)
-countries_list = [
-    "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Brazil", "Canada", "China",
-    "Chile", "Colombia", "Costa Rica", "Denmark", "Ecuador", "Egypt", "Finland", "France",
-    "Germany", "Greece", "India", "Indonesia", "Iran", "Ireland", "Israel", "Italy", "Japan",
-    "Kenya", "Malaysia", "Mexico", "Morocco", "Netherlands", "New Zealand", "Nigeria", "Norway",
-    "Pakistan", "Peru", "Philippines", "Poland", "Portugal", "Russia", "Saudi Arabia",
-    "Singapore", "South Africa", "South Korea", "Spain", "Sweden", "Switzerland", "Thailand",
-    "Turkey", "Ukraine", "United Kingdom", "United States", "Vietnam", "Venezuela",
-    "USA", "UK", "Russia", "Peoples R China"
-]
-COUNTRY_MAP = {c.lower(): c for c in countries_list}
-COUNTRY_MAP.update({
-    "usa": "United States", "uk": "United Kingdom", "peoples r china": "China", "pr china": "China"
-})
-
-CITY_TO_COUNTRY = {
-    "new york": "United States", "washington": "United States", "boston": "United States",
-    "london": "United Kingdom", "oxford": "United Kingdom", "cambridge": "United Kingdom",
-    "paris": "France", "berlin": "Germany", "madrid": "Spain", "barcelona": "Spain",
-    "rome": "Italy", "beijing": "China", "shanghai": "China", "wuhan": "China",
-    "tokyo": "Japan", "seoul": "South Korea", "buenos aires": "Argentina", 
-    "sao paulo": "Brazil", "brasilia": "Brazil", "santiago": "Chile", 
-    "bogota": "Colombia", "lima": "Peru", "mexico city": "Mexico", "quito": "Ecuador",
-    "canberra": "Australia", "sydney": "Australia", "melbourne": "Australia",
-    "brussels": "Belgium", "geneva": "Switzerland", "moscow": "Russia", "amsterdam": "Netherlands",
-    "wageningen": "Netherlands" # Agregado por tu ejemplo específico
-}
-
-# Regex
-BRACKET_RE = re.compile(r'\[.*?\]')
-SEPARATOR_NORMALIZER = re.compile(r'[\-\|\(\)\.]+') 
+# ESTILOS FINALES (VERDE)
+COLOR_FINAL_FONDO = '#E8F5E9'
+COLOR_FINAL_BORDE = '#2E7D32'
+GROSOR_FINAL = 3.5
 
 # ==========================================
-# 3. FUNCIONES DE LIMPIEZA Y EXTRACCIÓN
-# ==========================================
 
-def expand_abbreviations(text: str) -> str:
-    """Expande Univ -> University para mejorar el Fuzzy Match."""
-    for pattern, replacement in ABBREV_MAP.items():
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-    return text
+fig, ax = plt.subplots(figsize=(ANCHO, ALTO)) 
+ax.set_xlim(0, ANCHO)
+ax.set_ylim(0, ALTO)
+ax.axis('off')
 
-def infer_country(text: str) -> str:
-    text_lower = text.lower()
-    # 1. País explícito
-    for c_name in sorted(COUNTRY_MAP.keys(), key=len, reverse=True):
-        if re.search(rf"\b{re.escape(c_name)}\b", text_lower):
-            return COUNTRY_MAP[c_name]
-    # 2. Ciudad -> País
-    for city, country in CITY_TO_COUNTRY.items():
-        if re.search(rf"\b{re.escape(city)}\b", text_lower):
-            return country
-    return ""
+# --- FUNCIONES ---
 
-def is_trash(text: str) -> bool:
-    for trash_pat in TRASH_PATTERNS:
-        if trash_pat.search(text): return True
-    return False
-
-def clean_org_name(org: str) -> str:
-    org = re.sub(r'\d+', '', org) 
-    return org.strip(" ,;-")
-
-def process_affiliation_extraction(raw: str) -> list:
-    """
-    Extrae una lista de tuplas [(Org_Expandida, Org_Original, Pais), ...]
-    Nota: Retorna lista, no string, para poder deduplicar después.
-    """
-    if not raw or not isinstance(raw, str): return []
-
-    clean = BRACKET_RE.sub('', raw)
-    affiliations = [x.strip() for x in clean.split(';') if x.strip()]
-    extracted_data = []
+def draw_box(x, y_top, text, phase=None, final=False):
+    # Altura dinámica
+    lines = text.count('\n') + 1
+    h = 0.8 + lines * 0.5
     
-    for aff in affiliations:
-        aff_normalized = SEPARATOR_NORMALIZER.sub(',', aff)
-        parts = [p.strip() for p in aff_normalized.split(',') if p.strip()]
-        
-        found_country = infer_country(aff)
-        
-        # 🛑 REGLA DE ORO: Si no hay país, descartamos esta afiliación
-        if not found_country:
-            continue 
-            
-        found_org = ""
-        
-        # Buscar Organización
-        for part in parts:
-            if is_trash(part): continue
-            
-            is_valid_org = False
-            for valid_pat in VALID_ORG_PATTERNS:
-                if valid_pat.search(part):
-                    is_valid_org = True
-                    break
-            
-            if is_valid_org:
-                # Verificar que no sea geográfico
-                part_lower = part.lower()
-                is_geo = (part_lower in COUNTRY_MAP) or (part_lower in CITY_TO_COUNTRY) or (part_lower == found_country.lower())
-                if not is_geo:
-                    found_org = part
-                    break 
-        
-        if found_org:
-            org_clean = clean_org_name(found_org)
-            # Expandimos abreviaturas (Univ -> University) para facilitar la comparación
-            org_expanded = expand_abbreviations(org_clean)
-            
-            # Guardamos: (Versión Expandida para comparar, Versión Original para mostrar, País)
-            extracted_data.append({
-                "expanded": org_expanded,
-                "original": org_clean,
-                "country": found_country
-            })
-
-    return extracted_data
-
-# ==========================================
-# 4. LÓGICA DE DEDUPLICACIÓN (RAPIDFUZZ)
-# ==========================================
-
-def deduplicate_affiliations(data_list: list) -> str:
-    """
-    Recibe lista de diccionarios, agrupa los similares y devuelve string final.
-    Ej: 'Chinese Acad Sci' y 'Chinese Academy of Sciences' -> Se queda la larga.
-    """
-    if not data_list: return ""
+    y_bottom = y_top - h
+    y_center = y_top - (h/2)
     
-    unique_orgs = []
+    # Estilos
+    if final:
+        fc = COLOR_FINAL_FONDO; ec = COLOR_FINAL_BORDE; lw = GROSOR_FINAL
+    else:
+        fc = 'white'; ec = 'black'; lw = 1.2
+        
+    rect = patches.Rectangle((x, y_bottom), ANCHO_CAJA, h, linewidth=lw, edgecolor=ec, facecolor=fc, zorder=10)
+    ax.add_patch(rect)
     
-    for item in data_list:
-        candidate = item
-        candidate_text = candidate["expanded"] # Usamos la expandida para comparar
+    ax.text(x + ANCHO_CAJA/2, y_center, text, ha='center', va='center', fontsize=9.5, wrap=True, zorder=11, linespacing=1.4)
+    
+    # Etiqueta lateral (Fases)
+    if phase:
+        ax.plot([x - 1.5, x - 1.5], [y_top, y_bottom], color='#999', lw=2)
+        ax.text(x - 1.8, y_center, phase, ha='center', va='center', 
+                fontsize=11, fontweight='bold', rotation=90, color='#333')
         
-        matched = False
-        for i, existing in enumerate(unique_orgs):
-            existing_text = existing["expanded"]
-            
-            # Comparamos si son la misma institución (mismo país, texto similar)
-            if candidate["country"] == existing["country"]:
-                # Ratio alto (ej. > 85) significa que son casi iguales
-                ratio = fuzz.token_set_ratio(candidate_text, existing_text)
-                
-                if ratio > 85:
-                    matched = True
-                    # SI SON IGUALES, NOS QUEDAMOS CON LA MÁS LARGA (La más completa)
-                    if len(candidate["original"]) > len(existing["original"]):
-                        unique_orgs[i] = candidate # Reemplazamos con la mejor versión
-                    break
-        
-        if not matched:
-            unique_orgs.append(candidate)
-            
-    # Construir string final
-    final_strings = [f"{item['original']}, {item['country']}" for item in unique_orgs]
-    return "; ".join(final_strings)
+    return y_bottom, y_center
 
-# ==========================================
-# 5. EJECUCIÓN MAESTRA
-# ==========================================
+def draw_arrow(x, y_start, y_end):
+    if y_start > y_end:
+        ax.arrow(x, y_start, 0, y_end - y_start, head_width=0.15, head_length=0.15, fc='k', ec='k', length_includes_head=True, zorder=5)
 
-print("⏳ Procesando: Extracción Estricta + Deduplicación Fuzzy...")
+def draw_elbow(x_start, y_start, x_end, y_end):
+    mid_x = (x_start + x_end) / 2
+    ax.plot([x_start, mid_x], [y_start, y_start], 'k-', lw=1.2, zorder=5)
+    ax.plot([mid_x, mid_x], [y_start, y_end], 'k-', lw=1.2, zorder=5)
+    ax.arrow(mid_x, y_end, x_end - mid_x, 0, head_width=0.15, head_length=0.15, fc='k', ec='k', length_includes_head=True, zorder=5)
 
-# 1. Combinar columnas
-df['Raw_Text'] = df['Affiliations'] + ";" + df['Authors with affiliations']
+# =================== DIBUJO ===================
 
-# 2. Paso A: Extraer datos crudos (Lista de objetos)
-#    Esto nos da una lista temporal en cada celda
-temp_extracted = df['Raw_Text'].apply(process_affiliation_extraction)
+# Cabecera
+ax.add_patch(patches.Rectangle((POS_IZQ - 0.5, 24.5), 11, 0.8, fc='#FFD700', ec='none'))
+ax.text(POS_IZQ + 5, 24.9, "Identification of studies via databases and registers", ha='center', va='center', fontweight='bold', fontsize=12)
 
-# 3. Paso B: Deduplicar y formatear a texto
-df['Combined_universities'] = temp_extracted.apply(deduplicate_affiliations)
+CURRENT_Y = 24.0
+GAP = 1.2
 
-# Métricas
-total = len(df)
-llenas = df['Combined_universities'].replace("", pd.NA).count()
-print(f"✅ Procesado. Filas válidas (con País): {llenas} de {total}")
+# --- 1. IDENTIFICATION ---
+# Caja 1
+yb1, yc1 = draw_box(POS_IZQ, CURRENT_Y, "Records identified from:\nDatabases (n = 1,595)\n(WoS: 1,362; Scopus: 233)", phase="IDENTIFICATION")
 
-# Guardar
-df["Affiliations"] = df["Combined_universities"]
-df["Authors with affiliations"] = df["Combined_universities"]
-df.drop(columns=['Combined_universities', 'Raw_Text'], inplace=True, errors='ignore')
+# Caja 2 (YA SIN EL DETALLE DE DOI/FUZZY)
+yb2, yc2 = draw_box(POS_DER, CURRENT_Y, "Records removed before screening:\nDuplicate records removed (n = 115)")
 
-df.to_csv(OUT, index=False, encoding="utf-8")
-print(f"📄 Archivo limpio guardado: {OUT}")
+draw_elbow(POS_IZQ + ANCHO_CAJA, yc1, POS_DER, yc2)
+NEXT_Y = min(yb1, yb2) - GAP
+draw_arrow(POS_IZQ + ANCHO_CAJA/2, yb1, NEXT_Y)
+CURRENT_Y = NEXT_Y
+
+# --- 2. SCREENING ---
+yb3, yc3 = draw_box(POS_IZQ, CURRENT_Y, "Records screened\n(n = 1,444)", phase="SCREENING")
+yb4, yc4 = draw_box(POS_DER, CURRENT_Y, "Records excluded:\nIncomplete Metadata\n(n = 431)")
+draw_elbow(POS_IZQ + ANCHO_CAJA, yc3, POS_DER, yc4)
+NEXT_Y = min(yb3, yb4) - GAP
+draw_arrow(POS_IZQ + ANCHO_CAJA/2, yb3, NEXT_Y)
+CURRENT_Y = NEXT_Y
+
+# --- 3. ELIGIBILITY ---
+yb5, yc5 = draw_box(POS_IZQ, CURRENT_Y, "Reports assessed for eligibility\n(Valid Corpus)\n(n = 1,013)", phase="ELIGIBILITY")
+
+# Linea Bypass
+ax.plot([POS_IZQ + ANCHO_CAJA, BYPASS_X], [yc5, yc5], 'k--', lw=1.5) 
+
+NEXT_Y = yb5 - GAP
+draw_arrow(POS_IZQ + ANCHO_CAJA/2, yb5, NEXT_Y)
+CURRENT_Y = NEXT_Y
+
+yb6, yc6 = draw_box(POS_IZQ, CURRENT_Y, "Reports sought for retrieval\n(High Relevance ≥ 0.80)\n(n = 39)")
+yb7, yc7 = draw_box(POS_DER, CURRENT_Y, "Records excluded by AI:\n(n = 974)\nDiscarded (<0.50): 424\nLow Rel.: 378 | Med Rel.: 172")
+draw_elbow(POS_IZQ + ANCHO_CAJA/2, yc6 + 0.5, POS_DER, yc7)
+
+NEXT_Y = min(yb6, yb7) - GAP
+draw_arrow(POS_IZQ + ANCHO_CAJA/2, yb6, NEXT_Y)
+CURRENT_Y = NEXT_Y
+
+yb8, yc8 = draw_box(POS_IZQ, CURRENT_Y, "Reports assessed for\nfull-text eligibility (n = 39)")
+yb9, yc9 = draw_box(POS_DER, CURRENT_Y, "Reports excluded:\nFull text not available\nOut of scope (n = 11)")
+draw_elbow(POS_IZQ + ANCHO_CAJA/2, yc8 + 0.4, POS_DER, yc9)
+
+# --- 4. INCLUDED ---
+FINAL_Y_TOP = yb8 - 2.0 
+draw_arrow(POS_IZQ + ANCHO_CAJA/2, yb8, FINAL_Y_TOP)
+
+# Caja Final 1
+ybf1, ycf1 = draw_box(POS_IZQ, FINAL_Y_TOP, "Studies included in\nSYSTEMATIC REVIEW\n(Qualitative Synthesis)\n(n = 28)", phase="INCLUDED", final=True)
+
+# Caja Final 2
+ybf2, ycf2 = draw_box(POS_DER, FINAL_Y_TOP, "Studies included in\nBIBLIOMETRIC ANALYSIS\n(Quantitative Trends)\n(n = 1,013)", final=True)
+
+# Cierre Bypass
+ax.plot([BYPASS_X, BYPASS_X], [yc5, ycf2], 'k--', lw=1.5)
+ax.arrow(BYPASS_X, ycf2, POS_DER + ANCHO_CAJA - BYPASS_X, 0, head_width=0.15, fc='k', ec='k', length_includes_head=True)
+ax.text(BYPASS_X + 0.4, (yc5 + ycf2)/2, "Total Valid Corpus included in Bibliometrics", 
+        rotation=270, ha='center', va='center', fontsize=10, style='italic', backgroundcolor='white')
+
+plt.tight_layout()
+plt.savefig("PRISMA_Final_Clean.png", dpi=300, bbox_inches='tight')
+plt.show()
