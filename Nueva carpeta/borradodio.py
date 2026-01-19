@@ -124,7 +124,7 @@ def save_csv(record: dict, path: Path):
         w.writerow(record)
 
 def main():
-    doi = sys.argv[1] if len(sys.argv) > 1 else "10.1097/md.0000000000038955"
+    doi = sys.argv[1] if len(sys.argv) > 1 else "10.1080/23322039.2025.2560023"
     # Por buenas prácticas con Crossref, añade tu correo (opcional pero recomendado)
     mailto = None  # ejemplo: "angelo.aviles@tuuni.edu.ec"
 

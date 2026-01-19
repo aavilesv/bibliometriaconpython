@@ -41,7 +41,7 @@ import time  # Medición de tiempo de ejecución
 
 # ===================== CONFIG =====================
 
-INPUT_FILE = r"G:\Mi unidad\2025\Master FRANCISCO MARCELO ALVARADO PORRAS\data\dataexcel.xlsx"  # Ruta del archivo de entrada
+INPUT_FILE = r"G:\Mi unidad\Contrato con epunemi\materia\unidad 2\descarga en scopus\scopusexport.csv"  # Ruta del archivo de entrada
 
 INPUT_PATH = Path(INPUT_FILE)  # Convertimos la ruta a Path para manipulación segura
 if not INPUT_PATH.exists():  # Verificamos si el archivo existe
@@ -57,17 +57,20 @@ TEXT_COLS = ["Title", "Abstract", "Author Keywords", "Index Keywords"]  # Column
 MODEL_NAME = "all-mpnet-base-v2"  # Modelo SBERT recomendado (muy fuerte para similitud semántica)
 
 # Umbrales de clasificación (ajustados a temática CC.SS./Derecho)
-TH_HIGH = 0.72  # >= 0.72 -> Alta relevancia
-TH_MID  = 0.62  # >= 0.62 -> Media relevancia
+TH_HIGH = 0.85  # >= 0.80 -> Alta relevancia 
+TH_MID  = 0.70  # >= 0.70 -> Media relevancia
 TH_LOW  = 0.45  # >= 0.45 -> Baja relevancia; < 0.45 -> Descartar
 
 # Texto “ancla” del tema: puede ser título + keywords o un mini-resumen del tema
 TOPIC_TEXT = """
-Climate Change and the Transformation of International Environmental Law:
-Tensions, Justice, and Regulatory Challenges.
-Keywords: international environmental law, climate change, climate justice,
-global environmental governance, equity, international treaties,
-human rights, sustainability, regulatory challenges.
+Detection and Mitigation of Silent Technical Debt in Hybrid Software Ecosystems (Human-AI) using Multi-Label Deep Learning Models.
+This study focuses on identifying and mitigating hidden quality issues ("silent technical debt") inherent in software co-created 
+by humans and Large Language Models (LLMs), particularly within Low-Code/No-Code (LCNC) platforms and agentic workflows. 
+It employs Multi-Label Deep Learning to simultaneously classify complex, overlapping defects such as logic inconsistencies, 
+prompt fragility, security vulnerabilities, and hallucinated dependencies often found in "vibe coding" environments. 
+The approach aims to enhance reliability, explainability, and maintainability in AI-augmented development.
+
+
 """
 
 # Parámetros de selección
@@ -148,7 +151,7 @@ def main():  # Función principal
 
     # ---------- Lectura ----------
     df = read_input_file(INPUT_PATH).fillna("")  # Leemos el archivo y reemplazamos NaN por ""
-
+    df.dropna(subset=['Abstract', 'Title'], inplace=True)
     # ---------- Validación de columnas ----------
     missing_cols = [c for c in TEXT_COLS if c not in df.columns]  # Detectamos columnas faltantes
     if missing_cols:  # Si falta alguna
