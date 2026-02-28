@@ -82,10 +82,10 @@ try:
 
 #scopus_file_path = 'G:\\Mi unidad\\2025\\Master Italo Palacios\\articulo\\datascopus.csv'
 
-    scopus_file_path = r"G:\Mi unidad\bibliometric_review\FILES\SCOPUS\scopus_export_Dec 23-2025_2ed8d955-0705-42b8-b41b-cbbb58a08991.csv"
+    scopus_file_path = r"G:\Mi unidad\2026\Máster Jacqueline Regatto\CLASIFICADOR\scopusdata.csv"
     scimago_ruta = r"G:\\Mi unidad\\Maestría en inteligencia artificial\\Master Angelo Aviles\\bibliometria 2 scopus\\data\\scimago_unificado.csv"
 
-    wos_file_path = r'G:\Mi unidad\bibliometric_review\FILES\WOS\savedrecs1000.xls'
+    wos_file_path = r'G:\Mi unidad\2026\Máster Jacqueline Regatto\CLASIFICADOR\savedrecs.xls'
 
     try:
         scimagodata = pd.read_csv(scimago_ruta, sep=";")
@@ -217,7 +217,7 @@ try:
     wos_df["In_Both"] = wos_df["processed_title"].isin(all_duplicates).astype(int)
     scopus_df["In_Both"] = scopus_df["processed_title"].isin(all_duplicates).astype(int)
     # --- 5) Guardar los títulos repetidos en un archivo CSV ---
-    output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopus_repeatedstitless.csv"
+    output_file_path = r"G:\Mi unidad\2026\Máster Jacqueline Regatto\CLASIFICADOR\datawos_scopus_repeatedstitless.csv"
     repeated_titles_df = pd.DataFrame(list(all_duplicates), columns=['Título Repetido'])
     
     try:
@@ -739,7 +739,7 @@ try:
     print(yearly_document_counts)
         # --------------------------------------------------------------
     # Guardar el DataFrame combinado en un archivo CSV
-    combined_output_file_path = r"G:\Mi unidad\2025\Master  FRANCISCO MARCELO ALVARADO PORRAS\data\datawos_scopusfinal.csv"
+    combined_output_file_path = r"G:\Mi unidad\2026\Máster Jacqueline Regatto\CLASIFICADOR\datawos_scopusfinal.csv"
     try:
         combined_df.to_csv(combined_output_file_path, index=False)
        

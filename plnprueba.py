@@ -41,7 +41,7 @@ import time  # Medición de tiempo de ejecución
 
 # ===================== CONFIG =====================
 
-INPUT_FILE = r"G:\Mi unidad\Contrato con epunemi\materia\unidad 2\descarga en scopus\scopusexport.csv"  # Ruta del archivo de entrada
+INPUT_FILE = r"G:\Mi unidad\bibliometric_review\RESULTS\datawos_scopus.csv"  # Ruta del archivo de entrada
 
 INPUT_PATH = Path(INPUT_FILE)  # Convertimos la ruta a Path para manipulación segura
 if not INPUT_PATH.exists():  # Verificamos si el archivo existe
@@ -57,22 +57,32 @@ TEXT_COLS = ["Title", "Abstract", "Author Keywords", "Index Keywords"]  # Column
 MODEL_NAME = "all-mpnet-base-v2"  # Modelo SBERT recomendado (muy fuerte para similitud semántica)
 
 # Umbrales de clasificación (ajustados a temática CC.SS./Derecho)
-TH_HIGH = 0.85  # >= 0.80 -> Alta relevancia 
-TH_MID  = 0.70  # >= 0.70 -> Media relevancia
+TH_HIGH = 0.80  # >= 0.80 -> Alta relevancia 
+TH_MID  = 0.65  # >= 0.70 -> Media relevancia
 TH_LOW  = 0.45  # >= 0.45 -> Baja relevancia; < 0.45 -> Descartar
 
 # Texto “ancla” del tema: puede ser título + keywords o un mini-resumen del tema
-TOPIC_TEXT = """
-Detection and Mitigation of Silent Technical Debt in Hybrid Software Ecosystems (Human-AI) using Multi-Label Deep Learning Models.
-This study focuses on identifying and mitigating hidden quality issues ("silent technical debt") inherent in software co-created 
-by humans and Large Language Models (LLMs), particularly within Low-Code/No-Code (LCNC) platforms and agentic workflows. 
-It employs Multi-Label Deep Learning to simultaneously classify complex, overlapping defects such as logic inconsistencies, 
-prompt fragility, security vulnerabilities, and hallucinated dependencies often found in "vibe coding" environments. 
-The approach aims to enhance reliability, explainability, and maintainability in AI-augmented development.
+TOPIC_TEXT = """ 
+This study focuses on the influence of financial technologies (FinTech) on financial inclusion
+within the microfinance sector. Financial technologies include digital financial services such as
+mobile money, digital payments, online lending platforms, crowdfunding, and other technology-based
+financial innovations that facilitate access to financial services.
 
+Financial inclusion refers to the availability, accessibility, and effective use of formal financial
+services—such as credit, savings, payments, and insurance—by individuals and microenterprises,
+particularly those traditionally excluded from the formal financial system.
 
+Research in this area examines how the adoption and use of FinTech solutions contribute to expanding
+financial access, reducing transaction costs, improving service efficiency, and enhancing the
+participation of low-income populations and micro-entrepreneurs in the financial system.
+It also considers challenges such as digital literacy, trust in digital platforms, perceived security,
+and technological infrastructure.
+
+The scope prioritizes studies related to microfinance institutions, underserved populations,
+financial inclusion, digital finance, and FinTech adoption in developing and emerging economies.
+It excludes studies focused exclusively on highly technical system design, algorithms, blockchain
+engineering, or computer science topics unrelated to financial inclusion or microfinance.
 """
-
 # Parámetros de selección
 RESCUE_RATE = 0.15  # Porcentaje de rescate desde MEDIA (15%)
 RESCUE_MIN = 5  # Rescate mínimo (si MEDIA es pequeña)

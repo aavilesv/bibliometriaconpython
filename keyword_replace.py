@@ -261,6 +261,28 @@ palabras_clave_reemplazo = {
     "academic misconduct": "academic integrity",
     "ethical implications": "ai ethics",
     "ethical considerations": "ai ethics",
+    # ===== GENERATIVE AI VARIANTS =====
+"aigc": "generative ai",
+"gai": "generative ai",
+
+# ===== LLM EXTENSIONS =====
+"language model": "large language models",
+
+# ===== EDUCATION TRANSLATIONS =====
+"educación superior": "higher education",
+
+# ===== CHATGPT FAMILY =====
+"gpt": "chatgpt",
+"gpt-3": "chatgpt",
+"gpt-4": "chatgpt",
+
+# ===== STUDENT PERFORMANCE =====
+"academic-performance": "academic performance",
+"students performance": "academic performance",
+
+# ===== TEACHER VARIANTS =====
+"pre-service teachers": "teachers",
+"preservice teachers": "teachers",
 }
 
 
@@ -303,9 +325,9 @@ for c in KW_COLS:
         print(f"  {c}: {nuniq}")
 
 # Aplicar la función a las columnas "Index Keywords" y "Author Keywords"
-df['Index Keywords'] = reemplazar_palabras_clave(df['Index Keywords'], palabras_clave_reemplazo)
-df['Author Keywords'] = reemplazar_palabras_clave(df['Author Keywords'], palabras_clave_reemplazo)
-#df['bothKeywords'] =  reemplazar_palabras_clave(df['bothKeywords'], palabras_clave_reemplazo)
+#df['Index Keywords'] = reemplazar_palabras_clave(df['Index Keywords'], palabras_clave_reemplazo)
+#df['Author Keywords'] = reemplazar_palabras_clave(df['Author Keywords'], palabras_clave_reemplazo)
+df['bothKeywords'] =  reemplazar_palabras_clave(df['bothKeywords'], palabras_clave_reemplazo)
 # --- A PARTIR DE AQUÍ, EL CÓDIGO NUEVO PARA REEMPLAZOS PARCIALES ---
 print("\nDespués (recuento únicos):")
 for c in KW_COLS:
